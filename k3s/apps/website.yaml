@@ -1,0 +1,29 @@
+# ─────────────────────────────────────────────────────────────
+# ArgoCD Application — K8s Hub
+# Deploys the k8s-hub application (deployment, service, secrets)
+# ─────────────────────────────────────────────────────────────
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: k8s-hub
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+
+  source:
+    repoURL: https://github.com/YOUR_USERNAME/YOUR_REPO.git  # ← change this
+    targetRevision: main
+    path: k3s/manifests
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: k8s-hub
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

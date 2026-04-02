@@ -1,0 +1,20 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: k8s-hub
+  namespace: k8s-hub
+  labels:
+    app: k8s-hub
+spec:
+  type: ClusterIP
+  selector:
+    app: k8s-hub
+  ports:
+    - name: http
+      port: 80
+      targetPort: 80
+      protocol: TCP
+    - name: api
+      port: 3001
+      targetPort: 3001
+      protocol: TCP

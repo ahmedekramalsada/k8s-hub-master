@@ -1,0 +1,93 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: k8s-hub
+  namespace: k8s-hub
+  labels:
+    app: k8s-hub
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: k8s-hub
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  template:
+    metadata:
+      labels:
+        app: k8s-hub
+    spec:
+      terminationGracePeriodSeconds: 30
+      containers:
+        # ── Frontend (nginx) ──
+        - name: frontend
+          image: YOUR_DOCKERHUB_USER/k8s-hub:latest  # ← change this
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 80
+              name: http
+          env:
+            - name: BACKEND_URL
+              value: "http://localhost:3001"
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 200m
+              memory: 128Mi
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 80
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 80
+            initialDelaySeconds: 10
+            periodSeconds: 30
+
+        # ── Backend (node) ──
+        - name: backend
+          image: YOUR_DOCKERHUB_USER/k8s-hub-backend:latest  # ← change this
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 3001
+              name: api
+          env:
+            - name: PORT
+              value: "3001"
+            - name: NODE_ENV
+              value: "production"
+            - name: FRONTEND_URL
+              value: "https://k8s-hub.yourdomain.com"  # ← change this
+            - name: OPENROUTER_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: k8s-hub-secrets
+                  key: openrouter-api-key
+                  optional: true
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 3001
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 3001
+            initialDelaySeconds: 10
+            periodSeconds: 30

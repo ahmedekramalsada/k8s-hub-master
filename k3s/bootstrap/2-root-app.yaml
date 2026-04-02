@@ -1,0 +1,39 @@
+# ─────────────────────────────────────────────────────────────
+# FILE: bootstrap/2-root-app.yaml
+# PURPOSE: This is the ONE ArgoCD application you apply manually.
+#          It points ArgoCD to the /apps folder in your Git repo.
+#          ArgoCD then reads that folder and installs EVERYTHING
+#          else automatically. This is called "App of Apps" pattern.
+#
+# HOW TO APPLY: kubectl apply -f bootstrap/2-root-app.yaml
+# ─────────────────────────────────────────────────────────────
+
+apiVersion: argoproj.io/v1alpha1
+kind: Application          # This is an ArgoCD custom resource (CRD)
+metadata:
+  name: root               # Name of this ArgoCD application
+  namespace: argocd        # ArgoCD always lives in the argocd namespace
+spec:
+  project: default         # ArgoCD project (default = no restrictions)
+
+  source:
+    repoURL: https://github.com/YOUR_USERNAME/YOUR_REPO.git  # ← change this
+    targetRevision: main      # which git branch to watch
+    path: k3s/apps            # folder inside the repo to read
+
+  destination:
+    server: https://kubernetes.default.svc   # means "this same cluster"
+    namespace: argocd
+
+  syncPolicy:
+    automated:
+      prune: true        # if you delete a file from Git, ArgoCD deletes it from cluster
+      selfHeal: true     # if someone manually changes cluster, ArgoCD reverts it
+    syncOptions:
+      - CreateNamespace=true  # auto-create namespaces if they don't exist
+
+
+
+
+
+

@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: k8s-hub
+  labels:
+    app.kubernetes.io/name: k8s-hub
+    app.kubernetes.io/part-of: k8s-hub
