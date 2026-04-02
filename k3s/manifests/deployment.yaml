@@ -65,7 +65,7 @@ spec:
             - name: NODE_ENV
               value: "production"
             - name: FRONTEND_URL
-              value: "http://localhost:8080"
+              value: "http://43.157.50.97,http://localhost:8080"
             - name: OPENROUTER_API_KEY
               valueFrom:
                 secretKeyRef:
