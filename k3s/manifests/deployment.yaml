@@ -24,7 +24,7 @@ spec:
       containers:
         # ── Frontend (nginx) ──
         - name: frontend
-          image: ahmedekramalsada/k8s-hub:221
+          image: ahmedekramalsada/k8s-hub:222
           imagePullPolicy: Always
           ports:
             - containerPort: 80
@@ -54,7 +54,7 @@ spec:
 
         # ── Backend (node) ──
         - name: backend
-          image: ahmedekramalsada/k8s-hub-backend:221
+          image: ahmedekramalsada/k8s-hub-backend:222
           imagePullPolicy: Always
           ports:
             - containerPort: 3001
