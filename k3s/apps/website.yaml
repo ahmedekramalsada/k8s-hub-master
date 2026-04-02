@@ -13,7 +13,7 @@ spec:
   project: default
 
   source:
-    repoURL: https://github.com/YOUR_USERNAME/YOUR_REPO.git  # ← change this
+    repoURL: https://github.com/ahmedekramalsada/k8s-hub-master.git
     targetRevision: main
     path: k3s/manifests
 

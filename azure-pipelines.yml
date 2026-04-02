@@ -1,6 +1,6 @@
 # ═══════════════════════════════════════════════════════════════════
 # Azure DevOps Pipeline — K8s Hub
-# Builds Docker images and pushes to Docker Hub
+# Builds Docker images, pushes to Docker Hub, updates K8s manifests
 # ═══════════════════════════════════════════════════════════════════
 
 trigger:
@@ -103,3 +103,35 @@ stages:
               tags: |
                 $(IMAGE_TAG)
                 $(LATEST_TAG)
+
+  # ═══════════════════════════════════════════════════════════════
+  # Stage 3: Update image tags in k3s manifests → triggers ArgoCD
+  # ═══════════════════════════════════════════════════════════════
+  - stage: UpdateManifests
+    displayName: "Update K8s Manifests"
+    dependsOn: BuildBackend
+    jobs:
+      - job: updateManifests
+        displayName: "Update image tags in k3s/"
+        steps:
+          - checkout: self
+            persistCredentials: true
+
+          - script: |
+              git config --global user.email "ci@azure-devops.com"
+              git config --global user.name "Azure DevOps CI"
+
+              # Both containers are in the SAME file: k3s/manifests/deployment.yaml
+              # sed matches any username before /k8s-hub and replaces the tag
+
+              # Update frontend image tag
+              sed -i "s|image: .*/k8s-hub:.*|image: $(DOCKERHUB_USERNAME)/k8s-hub:$(IMAGE_TAG)|" k3s/manifests/deployment.yaml
+
+              # Update backend image tag
+              sed -i "s|image: .*/k8s-hub-backend:.*|image: $(DOCKERHUB_USERNAME)/k8s-hub-backend:$(IMAGE_TAG)|" k3s/manifests/deployment.yaml
+
+              # Commit and push
+              git add k3s/manifests/
+              git diff --staged --quiet || git commit -m "ci: update image tags to $(IMAGE_TAG) [skip ci]"
+              git push origin main
+            displayName: "Commit updated image tags"
