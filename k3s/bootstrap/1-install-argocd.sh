@@ -67,6 +67,10 @@ kubectl apply -n argocd -f \
 echo ">>> Waiting for ArgoCD to be ready..."
 kubectl wait --for=condition=Ready pods --all -n argocd --timeout=300s
 
+# ── Install Helm ──
+echo ">>> Installing Helm..."
+curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+
 # ── Install External Secrets Operator ──
 echo ">>> Installing External Secrets Operator..."
 helm repo add external-secrets https://charts.external-secrets.io 2>/dev/null || true

@@ -7,6 +7,7 @@ trigger:
   branches:
     include:
       - main
+      - master
   paths:
     exclude:
       - "*.md"
@@ -116,10 +117,14 @@ stages:
         steps:
           - checkout: self
             persistCredentials: true
+            fetchDepth: 0
 
           - script: |
               git config --global user.email "ci@azure-devops.com"
               git config --global user.name "Azure DevOps CI"
+
+              # Checkout main branch (Azure DevOps detaches HEAD by default)
+              git checkout main
 
               # Both containers are in the SAME file: k3s/manifests/deployment.yaml
               # sed matches any username before /k8s-hub and replaces the tag
@@ -133,5 +138,5 @@ stages:
               # Commit and push
               git add k3s/manifests/
               git diff --staged --quiet || git commit -m "ci: update image tags to $(IMAGE_TAG) [skip ci]"
-              git push origin HEAD
+              git push origin main
             displayName: "Commit updated image tags"
