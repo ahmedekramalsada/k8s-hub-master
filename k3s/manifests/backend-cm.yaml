@@ -1,0 +1,58 @@
+apiVersion: v1
+data:
+  index.js: "const express = require('express');\nconst cors = require('cors');\n\
+    const axios = require('axios');\nconst rateLimit = require('express-rate-limit');\n\
+    require('dotenv').config();\n\nconst app = express();\nconst PORT = process.env.PORT\
+    \ || 3001;\n\n// Rate limiter for AI chat endpoint (20 requests per minute per\
+    \ IP)\nconst aiChatLimiter = rateLimit({\n    windowMs: 60 * 1000,\n    max: 20,\n\
+    \    message: { content: null, error: 'Too many requests. Please try again later.'\
+    \ },\n    standardHeaders: true,\n    legacyHeaders: false\n});\n\n// Request\
+    \ logging middleware\napp.use((req, res, next) => {\n    const timestamp = new\
+    \ Date().toISOString();\n    console.log(`[${timestamp}] ${req.method} ${req.path}`);\n\
+    \    next();\n});\n\n// CORS configuration - allow frontend environments\nconst\
+    \ allowedOrigins = process.env.FRONTEND_URL \n    ? process.env.FRONTEND_URL.split(',')\
+    \ \n    : ['http://localhost:5173', 'http://localhost:8080'];\n\nconst corsOptions\
+    \ = {\n    origin: function (origin, callback) {\n        if (!origin || allowedOrigins.includes(origin)\
+    \ || origin.includes('localhost')) {\n            callback(null, true);\n    \
+    \    } else {\n            callback(new Error('Not allowed by CORS'));\n     \
+    \   }\n    },\n    credentials: true,\n    methods: ['GET', 'POST', 'OPTIONS'],\n\
+    \    allowedHeaders: ['Content-Type', 'Authorization']\n};\n\napp.use(cors(corsOptions));\n\
+    app.use(express.json());\n\n// GET /api/config - Check if AI features are enabled\n\
+    app.get('/api/config', (req, res) => {\n    res.json({\n        aiEnabled: !!process.env.OPENROUTER_API_KEY,\n\
+    \        provider: \"openrouter\"\n    });\n});\n\n// GET /health - Health check\
+    \ endpoint\napp.get('/health', (req, res) => {\n    const apiKeySet = !!process.env.OPENROUTER_API_KEY;\n\
+    \    const status = {\n        status: 'healthy',\n        timestamp: new Date().toISOString(),\n\
+    \        aiEnabled: apiKeySet,\n        port: PORT,\n        service: 'k8s-hub-backend'\n\
+    \    };\n    res.status(200).json(status);\n});\n\n// POST /api/ai/chat - Proxy\
+    \ chat requests to OpenRouter\napp.post('/api/ai/chat', aiChatLimiter, async (req,\
+    \ res) => {\n    const apiKey = process.env.OPENROUTER_API_KEY;\n\n    if (!apiKey)\
+    \ {\n        return res.status(503).json({\n            content: null,\n     \
+    \       error: \"AI service is not configured on the server.\"\n        });\n\
+    \    }\n\n    const model = req.body.model || \"stepfun/step-3.5-flash:free\"\
+    ;\n\n    try {\n        const response = await axios.post('https://openrouter.ai/api/v1/chat/completions',\
+    \ {\n            ...req.body,\n            model: model\n        }, {\n      \
+    \      headers: {\n                'Authorization': `Bearer ${apiKey}`,\n    \
+    \            'Content-Type': 'application/json',\n                'HTTP-Referer':\
+    \ 'https://hub.example.com', // Dummy for OpenRouter API\n                'X-Title':\
+    \ 'K8s Hub AI Proxy'\n            }\n        });\n\n        const content = response.data.choices?.[0]?.message?.content;\n\
+    \n        res.json({\n            content: content || \"No response content from\
+    \ AI.\",\n            error: null\n        });\n    } catch (error) {\n      \
+    \  console.error('AI Proxy Error:', error.response?.data || error.message);\n\
+    \        res.status(error.response?.status || 500).json({\n            content:\
+    \ null,\n            error: \"The AI service is currently unavailable. Please\
+    \ check server configuration.\"\n        });\n    }\n});\n\n// Graceful shutdown\n\
+    let server;\n\nfunction startServer() {\n    server = app.listen(PORT, () => {\n\
+    \        console.log(`\U0001F680 K8s Hub Backend running on port ${PORT}`);\n\
+    \        const key = process.env.OPENROUTER_API_KEY;\n        if (key) {\n   \
+    \         console.log(`\U0001F916 AI: Enabled \u2705`);\n        } else {\n  \
+    \          console.warn(`\u26A0\uFE0F AI: OPENROUTER_API_KEY not set \u2014 AI\
+    \ features disabled`);\n        }\n    });\n}\n\nfunction stopServer() {\n   \
+    \ if (server) {\n        server.close(() => {\n            console.log('Server\
+    \ closed gracefully');\n            process.exit(0);\n        });\n        setTimeout(()\
+    \ => {\n            console.error('Force closing connections');\n            process.exit(1);\n\
+    \        }, 10000);\n    }\n}\n\nprocess.on('SIGTERM', stopServer);\nprocess.on('SIGINT',\
+    \ stopServer);\n\nstartServer();\n"
+kind: ConfigMap
+metadata:
+  name: backend-code
+  namespace: k8s-hub

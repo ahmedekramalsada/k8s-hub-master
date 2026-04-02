@@ -91,3 +91,11 @@ spec:
               port: 3001
             initialDelaySeconds: 10
             periodSeconds: 30
+          volumeMounts:
+            - name: backend-code
+              mountPath: /app/src/index.js
+              subPath: index.js
+      volumes:
+        - name: backend-code
+          configMap:
+            name: backend-code
