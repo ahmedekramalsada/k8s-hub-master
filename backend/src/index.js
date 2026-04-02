@@ -95,14 +95,14 @@ app.post('/api/ai/chat', aiChatLimiter, async (req, res) => {
         const content = response.data.choices?.[0]?.message?.content;
 
         res.json({
-            content: content || "No response content from AI.",
+            reply: content || "No response content from AI.",
             error: null
         });
     } catch (error) {
         console.error('AI Proxy Error:', error.response?.data || error.message);
         res.status(error.response?.status || 500).json({
-            content: null,
-            error: "The AI service is currently unavailable. Please check server configuration."
+            reply: null,
+            error: error.response?.data?.error?.message || error.message || "The AI service is currently unavailable. Please check server configuration."
         });
     }
 });

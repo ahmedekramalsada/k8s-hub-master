@@ -52,11 +52,14 @@ export default function ChatPage() {
                 method: "POST", headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ messages: msgHistory })
             });
-            if (!res.ok) throw new Error();
+            if (!res.ok) {
+                const errData = await res.json().catch(() => ({}));
+                throw new Error(errData.error || "Network error connecting to AI API.");
+            }
             const data = await res.json();
-            setMessages(p => [...p, { role: "assistant", content: data.reply }]);
-        } catch {
-            setMessages(p => [...p, { role: "assistant", content: "⚠️ Network error connecting to AI API." }]);
+            setMessages(p => [...p, { role: "assistant", content: data.reply || data.content || "No response" }]);
+        } catch (err) {
+            setMessages(p => [...p, { role: "assistant", content: `⚠️ ${err.message}` }]);
         } finally {
             setLoading(false);
         }
