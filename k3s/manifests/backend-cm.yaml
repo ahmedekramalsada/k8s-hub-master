@@ -2,23 +2,24 @@ apiVersion: v1
 data:
   index.js: "const express = require('express');\nconst cors = require('cors');\n\
     const axios = require('axios');\nconst rateLimit = require('express-rate-limit');\n\
-    require('dotenv').config();\n\nconst app = express();\nconst PORT = process.env.PORT\
-    \ || 3001;\n\n// Rate limiter for AI chat endpoint (20 requests per minute per\
-    \ IP)\nconst aiChatLimiter = rateLimit({\n    windowMs: 60 * 1000,\n    max: 20,\n\
-    \    message: { content: null, error: 'Too many requests. Please try again later.'\
-    \ },\n    standardHeaders: true,\n    legacyHeaders: false\n});\n\n// Request\
-    \ logging middleware\napp.use((req, res, next) => {\n    const timestamp = new\
-    \ Date().toISOString();\n    console.log(`[${timestamp}] ${req.method} ${req.path}`);\n\
-    \    next();\n});\n\n// CORS configuration - allow frontend environments\nconst\
-    \ allowedOrigins = process.env.FRONTEND_URL \n    ? process.env.FRONTEND_URL.split(',')\
-    \ \n    : ['http://localhost:5173', 'http://localhost:8080'];\n\nconst corsOptions\
-    \ = {\n    origin: function (origin, callback) {\n        if (!origin || allowedOrigins.includes(origin)\
-    \ || origin.includes('localhost')) {\n            callback(null, true);\n    \
-    \    } else {\n            callback(new Error('Not allowed by CORS'));\n     \
-    \   }\n    },\n    credentials: true,\n    methods: ['GET', 'POST', 'OPTIONS'],\n\
-    \    allowedHeaders: ['Content-Type', 'Authorization']\n};\n\napp.use(cors(corsOptions));\n\
-    app.use(express.json());\n\n// GET /api/config - Check if AI features are enabled\n\
-    app.get('/api/config', (req, res) => {\n    res.json({\n        aiEnabled: !!process.env.OPENROUTER_API_KEY,\n\
+    require('dotenv').config();\n\nconst app = express();\napp.set('trust proxy',\
+    \ 1);\nconst PORT = process.env.PORT || 3001;\n\n// Rate limiter for AI chat endpoint\
+    \ (20 requests per minute per IP)\nconst aiChatLimiter = rateLimit({\n    windowMs:\
+    \ 60 * 1000,\n    max: 20,\n    message: { content: null, error: 'Too many requests.\
+    \ Please try again later.' },\n    standardHeaders: true,\n    legacyHeaders:\
+    \ false\n});\n\n// Request logging middleware\napp.use((req, res, next) => {\n\
+    \    const timestamp = new Date().toISOString();\n    console.log(`[${timestamp}]\
+    \ ${req.method} ${req.path}`);\n    next();\n});\n\n// CORS configuration - allow\
+    \ frontend environments\nconst allowedOrigins = process.env.FRONTEND_URL \n  \
+    \  ? process.env.FRONTEND_URL.split(',') \n    : ['http://localhost:5173', 'http://localhost:8080'];\n\
+    \nconst corsOptions = {\n    origin: function (origin, callback) {\n        if\
+    \ (!origin || allowedOrigins.includes(origin) || origin.includes('localhost'))\
+    \ {\n            callback(null, true);\n        } else {\n            callback(new\
+    \ Error('Not allowed by CORS'));\n        }\n    },\n    credentials: true,\n\
+    \    methods: ['GET', 'POST', 'OPTIONS'],\n    allowedHeaders: ['Content-Type',\
+    \ 'Authorization']\n};\n\napp.use(cors(corsOptions));\napp.use(express.json());\n\
+    \n// GET /api/config - Check if AI features are enabled\napp.get('/api/config',\
+    \ (req, res) => {\n    res.json({\n        aiEnabled: !!process.env.OPENROUTER_API_KEY,\n\
     \        provider: \"openrouter\"\n    });\n});\n\n// GET /health - Health check\
     \ endpoint\napp.get('/health', (req, res) => {\n    const apiKeySet = !!process.env.OPENROUTER_API_KEY;\n\
     \    const status = {\n        status: 'healthy',\n        timestamp: new Date().toISOString(),\n\

@@ -5,6 +5,7 @@ const rateLimit = require('express-rate-limit');
 require('dotenv').config();
 
 const app = express();
+app.set('trust proxy', 1);
 const PORT = process.env.PORT || 3001;
 
 // Rate limiter for AI chat endpoint (20 requests per minute per IP)
@@ -76,7 +77,7 @@ app.post('/api/ai/chat', aiChatLimiter, async (req, res) => {
         });
     }
 
-    const model = req.body.model || "arcee-ai/trinity-large-preview:free";
+    const model = req.body.model || "stepfun/step-3.5-flash:free";
 
     try {
         const response = await axios.post('https://openrouter.ai/api/v1/chat/completions', {
