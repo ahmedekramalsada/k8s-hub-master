@@ -74,6 +74,8 @@ spec:
               mountPath: /var/run
             - name: nginx-client-body
               mountPath: /etc/nginx/client-body
+            - name: nginx-conf
+              mountPath: /etc/nginx/conf.d
 
         # ── Backend (node) ──
         - name: backend
@@ -133,3 +135,6 @@ spec:
         - name: nginx-client-body
           emptyDir:
             sizeLimit: 50Mi
+        - name: nginx-conf
+          emptyDir:
+            sizeLimit: 10Mi
