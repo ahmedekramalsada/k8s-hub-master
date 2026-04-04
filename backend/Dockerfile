@@ -4,7 +4,7 @@ WORKDIR /app
 
 # Install deps first (cached layer)
 COPY package.json package-lock.json* ./
-RUN npm ci --only=production --ignore-scripts
+RUN npm ci --omit=dev --ignore-scripts
 
 # Copy source
 COPY . .
