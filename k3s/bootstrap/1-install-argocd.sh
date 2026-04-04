@@ -1,67 +1,77 @@
 #!/bin/bash
 # ─────────────────────────────────────────────────────────────
 # FILE: bootstrap/1-install-argocd.sh
-# PURPOSE: Run this ONCE on a fresh VM after K3s is installed.
-#          It installs K3s, ArgoCD, and ESO.
+# PURPOSE: ONE SCRIPT TO DO EVERYTHING.
+#          Run this on a fresh Ubuntu VM and get the website running.
 #
-# BEFORE RUNNING:
-#   1. Get Infisical Machine Identity credentials:
-#      - Go to Infisical → Access Control → Machine Identities
-#      - Create identity with Universal Auth
-#      - Grant read access to your project
-#      - Save Client ID and Client Secret
+# USAGE:
+#   Quick install (no AI):
+#     curl -sfL https://raw.githubusercontent.com/ahmedekramalsada/k8s-hub-master/main/k3s/bootstrap/1-install-argocd.sh | bash
 #
-#   2. Set environment variables:
-#      export INFISICAL_CLIENT_ID="your-client-id"
-#      export INFISICAL_CLIENT_SECRET="your-client-secret"
+#   With AI (set your OpenRouter key):
+#     export OPENROUTER_API_KEY="your-key"
+#     curl -sfL https://raw.githubusercontent.com/ahmedekramalsada/k8s-hub-master/main/k3s/bootstrap/1-install-argocd.sh | bash
 #
-# HOW TO RUN:
-#   chmod +x bootstrap/1-install-argocd.sh
-#   export INFISICAL_CLIENT_ID="xxx"
-#   export INFISICAL_CLIENT_SECRET="xxx"
-#   ./bootstrap/1-install-argocd.sh
+#   With Infisical (full secrets management):
+#     export INFISICAL_CLIENT_ID="xxx"
+#     export INFISICAL_CLIENT_SECRET="xxx"
+#     curl -sfL https://raw.githubusercontent.com/ahmedekramalsada/k8s-hub-master/main/k3s/bootstrap/1-install-argocd.sh | bash
 # ─────────────────────────────────────────────────────────────
 
 set -e
 
-# ── Validate environment ──
-if [ -z "$INFISICAL_CLIENT_ID" ] || [ -z "$INFISICAL_CLIENT_SECRET" ]; then
-  echo "❌ Missing Infisical credentials!"
-  echo ""
-  echo "Set these before running:"
-  echo "  export INFISICAL_CLIENT_ID=\"your-client-id\""
-  echo "  export INFISICAL_CLIENT_SECRET=\"your-client-secret\""
-  echo ""
-  echo "Get them from: Infisical → Access Control → Machine Identities"
-  exit 1
+SERVER_IP=$(curl -s ifconfig.me 2>/dev/null || echo "YOUR_SERVER_IP")
+
+echo ""
+echo "╔═══════════════════════════════════════════════════════╗"
+echo "║         K8s Hub — One-Click Installer                 ║"
+echo "║         Server: $SERVER_IP                            ║"
+echo "╚═══════════════════════════════════════════════════════╝"
+echo ""
+
+# ── Check for Infisical ──
+USE_INFISICAL=false
+if [ -n "$INFISICAL_CLIENT_ID" ] && [ -n "$INFISICAL_CLIENT_SECRET" ]; then
+  USE_INFISICAL=true
+  echo ">>> Infisical credentials detected — will configure ESO"
+fi
+
+# ── Check for OpenRouter API key ──
+USE_OPENROUTER=false
+if [ -n "$OPENROUTER_API_KEY" ]; then
+  USE_OPENROUTER=true
+  echo ">>> OpenRouter API key detected — will configure AI"
 fi
 
 # ── Add 2GB swap ──
-echo ">>> Setting up swap..."
-sudo fallocate -l 2G /swapfile
+echo ""
+echo ">>> [1/8] Setting up swap..."
+sudo fallocate -l 2G /swapfile 2>/dev/null || true
 sudo chmod 600 /swapfile
 sudo mkswap /swapfile
 sudo swapon /swapfile
-echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab
+echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab >/dev/null
 echo "✅ Swap enabled"
-free -h
 
 # ── Install K3s ──
-echo ">>> Installing K3s..."
+echo ">>> [2/8] Installing K3s..."
 curl -sfL https://get.k3s.io | sh -
 
-echo ">>> Setting up kubeconfig..."
 mkdir -p ~/.kube
 sudo cp /etc/rancher/k3s/k3s.yaml ~/.kube/config
 sudo chown $(id -u):$(id -g) ~/.kube/config
 export KUBECONFIG=~/.kube/config
 
-# ── Install Helm (needed for ArgoCD + ESO) ──
-echo ">>> Installing Helm..."
+echo ">>> Waiting for K3s to be ready..."
+kubectl wait --for=condition=Ready nodes --all --timeout=120s
+echo "✅ K3s ready"
+
+# ── Install Helm ──
+echo ">>> [3/8] Installing Helm..."
 curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
 
-# ── Install ArgoCD via Helm (avoids CRD annotation size bug) ──
-echo ">>> Installing ArgoCD via Helm..."
+# ── Install ArgoCD via Helm ──
+echo ">>> [4/8] Installing ArgoCD..."
 helm repo add argo https://argoproj.github.io/argo-helm 2>/dev/null || true
 helm repo update
 
@@ -70,75 +80,108 @@ helm upgrade --install argocd argo/argo-cd \
   --create-namespace \
   --set configs.params."server\.insecure"=true \
   --set server.service.type=ClusterIP \
-  --wait
+  --wait >/dev/null 2>&1
 
-echo ">>> Waiting for ArgoCD to be ready..."
+echo ">>> Waiting for ArgoCD..."
 kubectl wait --for=condition=Ready pods -l app.kubernetes.io/managed-by=Helm -n argocd --timeout=300s
+echo "✅ ArgoCD ready"
 
-# ── Install metrics-server (required for HPA) ──
-echo ">>> Installing metrics-server..."
-kubectl apply -f https://github.com/kubernetes-sigs/metrics-server/releases/latest/download/components.yaml
-
-echo ">>> Waiting for metrics-server to be ready..."
+# ── Install metrics-server ──
+echo ">>> [5/8] Installing metrics-server..."
+kubectl apply -f https://github.com/kubernetes-sigs/metrics-server/releases/latest/download/components.yaml >/dev/null 2>&1
 kubectl wait --for=condition=Ready pods -l k8s-app=metrics-server -n kube-system --timeout=120s
+echo "✅ metrics-server ready"
 
-# ── Install Helm ──
-echo ">>> Installing Helm..."
-curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+# ── Install ESO (only if Infisical) ──
+if [ "$USE_INFISICAL" = true ]; then
+  echo ">>> [6/8] Installing External Secrets Operator..."
+  helm repo add external-secrets https://charts.external-secrets.io 2>/dev/null || true
+  helm repo update
+  helm upgrade --install external-secrets external-secrets/external-secrets \
+    --namespace external-secrets \
+    --create-namespace \
+    --set installCRDs=true \
+    --wait >/dev/null 2>&1
+  kubectl wait --for=condition=Ready pods --all -n external-secrets --timeout=120s
 
-# ── Install External Secrets Operator ──
-echo ">>> Installing External Secrets Operator..."
-helm repo add external-secrets https://charts.external-secrets.io 2>/dev/null || true
-helm repo update
+  kubectl create namespace k8s-hub --dry-run=client -o yaml | kubectl apply -f -
+  kubectl create secret generic infisical-credentials \
+    --namespace k8s-hub \
+    --from-literal=client-id="$INFISICAL_CLIENT_ID" \
+    --from-literal=client-secret="$INFISICAL_CLIENT_SECRET" \
+    --dry-run=client -o yaml | kubectl apply -f -
+  echo "✅ ESO + Infisical ready"
+else
+  echo ">>> [6/8] Skipping ESO (no Infisical credentials)"
+fi
 
-helm upgrade --install external-secrets external-secrets/external-secrets \
-  --namespace external-secrets \
-  --create-namespace \
-  --set installCRDs=true \
-  --set webhook.enabled=true \
-  --set certController.enabled=true \
-  --wait
-
-echo ">>> Waiting for ESO to be ready..."
-kubectl wait --for=condition=Ready pods --all -n external-secrets --timeout=120s
-
-# ── Create Infisical credentials secret ──
-echo ">>> Creating Infisical credentials secret..."
+# ── Create namespace ──
 kubectl create namespace k8s-hub --dry-run=client -o yaml | kubectl apply -f -
 
-kubectl create secret generic infisical-credentials \
-  --namespace k8s-hub \
-  --from-literal=client-id="$INFISICAL_CLIENT_ID" \
-  --from-literal=client-secret="$INFISICAL_CLIENT_SECRET" \
-  --dry-run=client -o yaml | kubectl apply -f -
+# ── Deploy the website via ArgoCD ──
+echo ">>> [7/8] Deploying K8s Hub website..."
+
+# Clone repo to get the manifests
+apt install -y git >/dev/null 2>&1
+REPO_DIR=$(mktemp -d)
+git clone --depth 1 https://github.com/ahmedekramalsada/k8s-hub-master.git "$REPO_DIR"
+
+# Apply all manifests directly (faster than waiting for ArgoCD root app)
+kubectl apply -f "$REPO_DIR/k3s/manifests/namespace.yaml"
+kubectl apply -f "$REPO_DIR/k3s/manifests/deployment.yaml"
+kubectl apply -f "$REPO_DIR/k3s/manifests/service.yaml"
+kubectl apply -f "$REPO_DIR/k3s/manifests/ingress.yaml"
+kubectl apply -f "$REPO_DIR/k3s/manifests/networkpolicy.yaml"
+kubectl apply -f "$REPO_DIR/k3s/manifests/pdb.yaml"
+kubectl apply -f "$REPO_DIR/k3s/manifests/hpa.yaml"
+
+# Set AI key if provided
+if [ "$USE_OPENROUTER" = true ]; then
+  echo ">>> Configuring AI with OpenRouter API key..."
+  kubectl create secret generic k8s-hub-secrets \
+    --namespace k8s-hub \
+    --from-literal=openrouter-api-key="$OPENROUTER_API_KEY" \
+    --dry-run=client -o yaml | kubectl apply -f -
+  echo "✅ AI configured"
+elif [ "$USE_INFISICAL" = true ]; then
+  echo ">>> AI will be configured via ESO + Infisical"
+  kubectl apply -f "$REPO_DIR/k3s/manifests/secret-store.yaml"
+  kubectl apply -f "$REPO_DIR/k3s/manifests/external-secret.yaml"
+else
+  echo ">>> No AI key provided — AI features will be disabled"
+  echo "    To enable later: kubectl create secret generic k8s-hub-secrets -n k8s-hub --from-literal=openrouter-api-key='your-key'"
+fi
+
+# Clean up
+rm -rf "$REPO_DIR"
+
+echo "✅ Website manifests applied"
+
+# ── Wait for pods ──
+echo ">>> [8/8] Waiting for pods to be ready..."
+kubectl wait --for=condition=Ready pods -l app=k8s-hub -n k8s-hub --timeout=180s 2>/dev/null || {
+  echo "⏳ Pods still starting... checking status:"
+  kubectl get pods -n k8s-hub
+}
 
 # ── Get ArgoCD password ──
-ARGOCD_PASSWORD=$(kubectl get secret argocd-initial-admin-secret \
-  -n argocd \
-  -o jsonpath="{.data.password}" | base64 -d 2>/dev/null || \
-  kubectl get secret argocd-admin-password \
-  -n argocd \
-  -o jsonpath="{.data.password}" | base64 -d 2>/dev/null || \
-  echo "Check: kubectl get secrets -n argocd | grep admin")
+ARGOCD_PASSWORD=$(kubectl get secret argocd-initial-admin-secret -n argocd -o jsonpath="{.data.password}" | base64 -d 2>/dev/null || echo "see: kubectl get secrets -n argocd")
 
 echo ""
-echo "═══════════════════════════════════════════════════════"
-echo "✅ Bootstrap complete!"
-echo "═══════════════════════════════════════════════════════"
+echo "╔═══════════════════════════════════════════════════════╗"
+echo "║                    ✅ DONE!                           ║"
+echo "╚═══════════════════════════════════════════════════════╝"
 echo ""
-echo "ArgoCD:"
-echo "  URL:      https://$(curl -s ifconfig.me):443"
-echo "  Username: admin"
-echo "  Password: $ARGOCD_PASSWORD"
+echo "🌐 Your website:  http://$SERVER_IP"
 echo ""
-echo "External Secrets Operator: ✅ Installed"
-echo "Infisical credentials:     ✅ Created in namespace k8s-hub"
+echo "📊 ArgoCD UI:"
+echo "   Port-forward: kubectl port-forward svc/argocd-server -n argocd 8080:443"
+echo "   Then open:    http://localhost:8080"
+echo "   Username:     admin"
+echo "   Password:     $ARGOCD_PASSWORD"
 echo ""
-echo "Next steps:"
-echo "  1. Edit k3s/bootstrap/2-root-app.yaml"
-echo "     → Set your Git repo URL"
-echo "  2. Edit k3s/manifests/secret-store.yaml"
-echo "     → Set your Infisical projectSlug and environmentSlug"
-echo "  3. Apply the root app:"
-echo "     kubectl apply -f bootstrap/2-root-app.yaml"
+echo "📋 Useful commands:"
+echo "   kubectl get pods -n k8s-hub          # Check pods"
+echo "   kubectl logs -n k8s-hub deploy/k8s-hub -c backend -f  # Backend logs"
+echo "   kubectl logs -n k8s-hub deploy/k8s-hub -c frontend -f # Frontend logs"
 echo ""
