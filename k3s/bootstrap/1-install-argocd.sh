@@ -20,6 +20,27 @@
 
 set -e
 
+SERVER_IP=$(curl -s ifconfig.me 2>/dev/null || echo "YOUR_SERVER_IP")
+USE_INFISICAL=false
+USE_OPENROUTER=false
+
+if [ -n "$INFISICAL_CLIENT_ID" ] && [ -n "$INFISICAL_CLIENT_SECRET" ]; then
+  USE_INFISICAL=true
+  echo ">>> Infisical credentials detected — will configure ESO"
+fi
+
+if [ -n "$OPENROUTER_API_KEY" ]; then
+  USE_OPENROUTER=true
+  echo ">>> OpenRouter API key detected — will configure AI"
+fi
+
+echo ""
+echo "╔═══════════════════════════════════════════════════════╗"
+echo "║         K8s Hub — One-Click Installer                 ║"
+echo "║         Server: $SERVER_IP                            ║"
+echo "╚═══════════════════════════════════════════════════════╝"
+echo ""
+
 # ── Add 2GB swap (skip if already active) ──
 echo ""
 echo ">>> [1/8] Setting up swap..."
@@ -118,6 +139,8 @@ REPO_DIR=$(mktemp -d)
 git clone --depth 1 https://github.com/ahmedekramalsada/k8s-hub-master.git "$REPO_DIR"
 
 # Apply all manifests directly (faster than waiting for ArgoCD root app)
+# Note: servicemonitor.yaml is skipped — it requires prometheus-operator CRD
+# which is installed separately via the monitoring ArgoCD app
 kubectl apply -f "$REPO_DIR/k3s/manifests/namespace.yaml"
 kubectl apply -f "$REPO_DIR/k3s/manifests/deployment.yaml"
 kubectl apply -f "$REPO_DIR/k3s/manifests/service.yaml"

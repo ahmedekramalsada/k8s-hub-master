@@ -70,7 +70,14 @@ const allowedOrigins = process.env.FRONTEND_URL
 
 const corsOptions = {
     origin: function (origin, callback) {
-        if (!origin || allowedOrigins.includes(origin) || origin.includes('localhost')) {
+        // Allow requests with no origin (mobile apps, curl, etc.)
+        // Allow localhost for development
+        // Allow any origin from allowedOrigins list
+        // Allow any http/https origin for production (public website)
+        if (!origin || 
+            allowedOrigins.includes(origin) || 
+            origin.includes('localhost') ||
+            origin.match(/^https?:\/\//)) {
             callback(null, true);
         } else {
             callback(new Error('Not allowed by CORS'));

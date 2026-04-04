@@ -63,6 +63,8 @@ spec:
               cpu: 200m
               memory: 256Mi
           adminPassword: k8shub-admin
+          admin:
+            existingSecret: ""
         alertmanager:
           alertmanagerSpec:
             resources:
