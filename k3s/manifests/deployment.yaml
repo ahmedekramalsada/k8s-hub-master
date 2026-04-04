@@ -6,7 +6,7 @@ metadata:
   labels:
     app: k8s-hub
 spec:
-  replicas: 2
+  replicas: 1
   selector:
     matchLabels:
       app: k8s-hub
@@ -43,11 +43,11 @@ spec:
               value: "http://localhost:3001"
           resources:
             requests:
-              cpu: 50m
-              memory: 64Mi
+              cpu: 30m
+              memory: 48Mi
             limits:
-              cpu: 200m
-              memory: 128Mi
+              cpu: 150m
+              memory: 96Mi
           readinessProbe:
             httpGet:
               path: /health
@@ -99,10 +99,10 @@ spec:
           resources:
             requests:
               cpu: 50m
-              memory: 64Mi
+              memory: 96Mi
             limits:
-              cpu: 500m
-              memory: 256Mi
+              cpu: 300m
+              memory: 192Mi
           readinessProbe:
             httpGet:
               path: /health
