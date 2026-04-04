@@ -6,6 +6,7 @@ const NAV_SECTIONS = [
     { path: '/', label: 'Home', icon: '🏠', exact: true },
     { path: '/generator', label: 'Generator', icon: '⚡' },
     { path: '/learn', label: 'Learn', icon: '📚' },
+    { path: '/docs', label: 'Docs', icon: '📖' },
     { path: '/chat', label: 'AI Chat', icon: '🤖' },
 ];
 

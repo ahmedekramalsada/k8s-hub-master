@@ -197,6 +197,52 @@ body {
   color: var(--text-primary);
 }
 
+/* ── Focus Visible (Accessibility) ────────────────────────────────── */
+:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
+}
+
+button:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+a:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+/* ── Skip Navigation Link ─────────────────────────────────────────── */
+.skip-nav {
+  position: absolute;
+  top: -100%;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--color-primary);
+  color: white;
+  padding: var(--sp-2) var(--sp-4);
+  border-radius: var(--radius-md);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  z-index: 9999;
+  text-decoration: none;
+  transition: top var(--duration-fast) ease;
+}
+
+.skip-nav:focus {
+  top: var(--sp-2);
+}
+
 /* ── Scrollbar ─────────────────────────────────────────────────────── */
 ::-webkit-scrollbar {
   width: 6px;
@@ -289,4 +335,54 @@ body {
 
 @media (max-width: 768px) {
   .container { padding: 0 var(--sp-5); }
+}
+
+/* ── Responsive Grid ──────────────────────────────────────────────── */
+.grid-auto {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: var(--sp-5);
+}
+
+.grid-auto-sm {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: var(--sp-4);
+}
+
+/* ── Content Visibility for Performance ───────────────────────────── */
+.lazy-section {
+  content-visibility: auto;
+  contain-intrinsic-size: 0 500px;
+}
+
+/* ── Better Card Hover (CSS-only, no JS state needed) ─────────────── */
+.card-hover {
+  transition: transform var(--duration-normal) var(--ease-out-expo),
+              box-shadow var(--duration-normal) var(--ease-out-expo),
+              border-color var(--duration-normal) var(--ease-out-expo);
+}
+
+.card-hover:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-lg);
+}
+
+/* ── Gradient Border Trick ────────────────────────────────────────── */
+.gradient-border {
+  position: relative;
+  border: none;
+}
+
+.gradient-border::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  background: linear-gradient(135deg, var(--color-primary), var(--color-secondary));
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
 }

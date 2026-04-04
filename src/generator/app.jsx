@@ -687,17 +687,6 @@ export default function App() {
   return (
     <div style={{ minHeight: "100vh", background: theme.bg, color: theme.text, display: "flex", flexDirection: "column", fontFamily: "'JetBrains Mono', monospace" }}>
       <MobileStyles />
-      <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&family=Syne:wght@700;800&display=swap');
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-        ::-webkit-scrollbar { width: 5px; height: 5px; }
-        ::-webkit-scrollbar-thumb { background: #2a2a40; border-radius: 3px; }
-        select option { background: #0a0a18; }
-        @keyframes pulse { 0%,100%{opacity:1}50%{opacity:0.4} }
-        @keyframes fadeUp { from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)} }
-        @keyframes aiPulse { 0%,100%{box-shadow:0 0 14px rgba(99,102,241,0.4)}50%{box-shadow:0 0 28px rgba(99,102,241,0.8)} }
-        .fade { animation: fadeUp 0.2s ease; }
-      `}</style>
 
       {/* Mobile Sidebar Overlay */}
       <div className={`mobile-sidebar-drawer ${showMobileSidebar ? "" : "mobile-sidebar-hidden"}`}>
@@ -708,89 +697,106 @@ export default function App() {
 
       <TopNav view={view} onView={setView} darkMode={dark} onToggleTheme={() => setDark(!dark)} theme={theme} onToggleMobileSidebar={() => setShowMobileSidebar(true)} />
 
-      {/* ── DASHBOARD VIEW ──────────────────────────────────── */}
-      {view === "dashboard" && (
-        <Dashboard
-          onSelect={handleDashboardSelect}
-          onQuickCreate={kind => { setQuickCreateKind(kind); }}
-          recentResources={recentResources}
-          bundle={bundle}
-        />
-      )}
-
-      {/* ── ENV TOOLBAR ─────────────────────────────────────── */}
+      {/* ── ENV TOOLBAR (compact, integrated) ─────────────────────── */}
       {view === "generator" && (
-        <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "5px 14px", borderBottom: `1px solid ${theme.border}`, background: theme.bgCard, flexWrap: "wrap" }}>
-          <span style={{ color: theme.textDim, fontSize: 10.5 }}>ENV:</span>
+        <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 14px", borderBottom: `1px solid ${theme.border}`, background: theme.bgCard, flexWrap: "wrap" }}>
+          <span style={{ color: theme.textDim, fontSize: 10, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", marginRight: 2 }}>ENV</span>
           {Object.entries(ENV_PRESETS).map(([k, p]) => (
             <button key={k} onClick={() => applyEnvPreset(k)}
-              style={{ background: envMode === k ? `${p.color}20` : "transparent", border: `1px solid ${envMode === k ? p.color + "60" : theme.border}`, borderRadius: 5, color: envMode === k ? p.color : theme.textMuted, cursor: "pointer", fontSize: 10.5, padding: "3px 10px", fontFamily: "'JetBrains Mono', monospace", fontWeight: envMode === k ? 700 : 400 }}>
+              style={{ background: envMode === k ? `${p.color}20` : "transparent", border: `1px solid ${envMode === k ? p.color + "60" : theme.border}`, borderRadius: 6, color: envMode === k ? p.color : theme.textMuted, cursor: "pointer", fontSize: 10.5, padding: "3px 10px", fontFamily: "'JetBrains Mono', monospace", fontWeight: envMode === k ? 700 : 400, transition: "all 150ms ease" }}>
               {p.icon} {p.label}
             </button>
           ))}
-          <span style={{ marginLeft: "auto", color: theme.textDim, fontSize: 10 }}>|</span>
+          <div style={{ flex: 1 }} />
           <button onClick={() => setBeginnerMode(b => !b)}
-            style={{ background: beginnerMode ? "#22d3ee20" : "transparent", border: `1px solid ${beginnerMode ? "#22d3ee50" : theme.border}`, borderRadius: 5, color: beginnerMode ? "#22d3ee" : theme.textMuted, cursor: "pointer", fontSize: 10.5, padding: "3px 10px", fontFamily: "'JetBrains Mono', monospace" }}>
+            style={{ background: beginnerMode ? "#22d3ee20" : "transparent", border: `1px solid ${beginnerMode ? "#22d3ee50" : theme.border}`, borderRadius: 6, color: beginnerMode ? "#22d3ee" : theme.textMuted, cursor: "pointer", fontSize: 10.5, padding: "3px 10px", fontFamily: "'JetBrains Mono', monospace", transition: "all 150ms ease" }}>
             {beginnerMode ? "🎓 Beginner ON" : "🎓 Beginner"}
           </button>
-        </div>
-      )}
-      {beginnerMode && view === "generator" && (
-        <div style={{ padding: "7px 16px", background: "#0c192b", borderBottom: "1px solid #1e3a5f", display: "flex", alignItems: "center", gap: 10 }}>
-          <span style={{ fontSize: 13 }}>🎓</span>
-          <span style={{ color: "#60a5fa", fontSize: 11 }}>Beginner Mode: Hover over field labels for hints. Use the <strong>Wizard</strong> or <strong>Learn</strong> tabs for guided K8s help.</span>
-          <button onClick={() => setView("wizard")} style={{ marginLeft: "auto", background: "#1e3a5f", border: "1px solid #2d5a8e", borderRadius: 6, color: "#60a5fa", cursor: "pointer", fontSize: 10.5, padding: "4px 10px", fontFamily: "'JetBrains Mono', monospace" }}>🧙 Wizard →</button>
+          <button onClick={() => setShowShortcuts(s => !s)}
+            style={{ background: "transparent", border: `1px solid ${theme.border}`, borderRadius: 6, color: theme.textMuted, cursor: "pointer", fontSize: 10.5, padding: "3px 10px", fontFamily: "'JetBrains Mono', monospace", transition: "all 150ms ease" }}>
+            ⌨️ Shortcuts
+          </button>
         </div>
       )}
 
       {view === "generator" && (
-        <div className="mobile-stacked" style={{ display: "flex", flex: 1, overflow: "hidden", height: "calc(100vh - 108px)" }}>
+        <div className="mobile-stacked" style={{ display: "flex", flex: 1, overflow: "hidden", height: "calc(100vh - 96px)" }}>
+          {/* Sidebar */}
           <div className="desktop-only" style={{ display: "flex", height: "100%" }}>
             <Sidebar selected={selected} onSelect={setSelected} search={search} onSearch={setSearch} theme={theme} onQuickCreate={setQuickCreateKind} />
           </div>
 
-          {/* Form Panel */}
-          <div style={{ width: 400, flexShrink: 0, borderRight: `1px solid ${theme.border}`, overflowY: "auto", background: theme.bgCard }} className="mobile-stacked-fullwidth">
-            <div style={{ padding: "14px 16px 10px", borderBottom: `1px solid ${theme.border}`, display: "flex", alignItems: "center", gap: 8, position: "sticky", top: 0, background: theme.bgCard, zIndex: 10 }}>
-              <button onClick={() => setView("dashboard")} title="Back to all resources" style={{ background: "var(--bg-input)", border: "1px solid var(--border-subtle)", borderRadius: 6, color: "var(--text-muted)", cursor: "pointer", fontSize: 13, padding: "5px 10px", fontFamily: "'JetBrains Mono', monospace", transition: "all 150ms ease" }}
+          {/* Form Panel — proper scrolling */}
+          <div style={{ width: 420, flexShrink: 0, borderRight: `1px solid ${theme.border}`, overflowY: "auto", overflowX: "hidden", background: theme.bgCard, scrollBehavior: "smooth" }} className="mobile-stacked-fullwidth">
+            {/* Sticky header */}
+            <div style={{ padding: "12px 16px", borderBottom: `1px solid ${theme.border}`, background: theme.bgCard, display: "flex", alignItems: "center", gap: 8, position: "sticky", top: 0, zIndex: 10, backdropFilter: "blur(12px)" }}>
+              <button onClick={() => setView("dashboard")} title="Back to all resources" style={{ background: "var(--bg-input)", border: "1px solid var(--border-subtle)", borderRadius: 8, color: "var(--text-muted)", cursor: "pointer", fontSize: 13, padding: "6px 10px", fontFamily: "'JetBrains Mono', monospace", transition: "all 150ms ease", display: "flex", alignItems: "center", gap: 4 }}
                 onMouseEnter={e => { e.currentTarget.style.borderColor = "var(--color-primary)"; e.currentTarget.style.color = "var(--color-primary-light)"; }}
                 onMouseLeave={e => { e.currentTarget.style.borderColor = "var(--border-subtle)"; e.currentTarget.style.color = "var(--text-muted)"; }}
-              >← All</button>
-              <span style={{ fontSize: 18 }}>{meta?.icon}</span>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontFamily: "'Syne', sans-serif", fontWeight: 800, color: meta?.color, fontSize: 14 }}>{selected}</div>
-                <div style={{ color: theme.textDim, fontSize: 10 }}>{meta?.desc}</div>
+              >
+                <span style={{ fontSize: 16 }}>←</span>
+              </button>
+              <span style={{ fontSize: 20, filter: "drop-shadow(0 2px 6px rgba(0,0,0,0.3))" }}>{meta?.icon}</span>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontFamily: "'Syne', sans-serif", fontWeight: 800, color: meta?.color, fontSize: 14, lineHeight: 1.2 }}>{selected}</div>
+                <div style={{ color: theme.textDim, fontSize: 10, lineHeight: 1.2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{meta?.desc}</div>
               </div>
-              <button onClick={() => setForms(f => ({ ...f, [selected]: {} }))} style={{ background: "transparent", border: `1px solid ${theme.border}`, borderRadius: 5, color: theme.textDim, cursor: "pointer", fontSize: 10, padding: "3px 8px", fontFamily: "'JetBrains Mono', monospace" }}>Clear</button>
-              {ai.enabled && <button onClick={() => openAIPanel(`I'm configuring a Kubernetes ${selected}. Suggest best practices and improvements for my setup.`)} title="Ask AI for suggestions" style={{ background: "#6366f120", border: "1px solid #6366f140", borderRadius: 5, color: "#818cf8", cursor: "pointer", fontSize: 10, padding: "3px 8px", fontFamily: "'JetBrains Mono', monospace" }}>💡 AI</button>}
+              <button onClick={() => setForms(f => ({ ...f, [selected]: {} }))} style={{ background: "transparent", border: `1px solid ${theme.border}`, borderRadius: 6, color: theme.textDim, cursor: "pointer", fontSize: 10, padding: "4px 8px", fontFamily: "'JetBrains Mono', monospace", transition: "all 150ms ease" }}
+                onMouseEnter={e => { e.currentTarget.style.borderColor = "#ef444460"; e.currentTarget.style.color = "#ef4444"; }}
+                onMouseLeave={e => { e.currentTarget.style.borderColor = theme.border; e.currentTarget.style.color = theme.textDim; }}
+              >Clear</button>
+              {ai.enabled && <button onClick={() => openAIPanel(`I'm configuring a Kubernetes ${selected}. Suggest best practices and improvements for my setup.`)} title="Ask AI for suggestions" style={{ background: "#6366f120", border: "1px solid #6366f140", borderRadius: 6, color: "#818cf8", cursor: "pointer", fontSize: 10, padding: "4px 8px", fontFamily: "'JetBrains Mono', monospace", transition: "all 150ms ease" }}>💡 AI</button>}
             </div>
 
-            <div style={{ padding: "14px 16px" }} className="fade">
+            {/* Beginner mode inline hint (compact) */}
+            {beginnerMode && (
+              <div style={{ padding: "8px 16px", background: "#0c192b", borderBottom: "1px solid #1e3a5f", display: "flex", alignItems: "center", gap: 8 }}>
+                <span style={{ fontSize: 14 }}>🎓</span>
+                <span style={{ color: "#60a5fa", fontSize: 11, lineHeight: 1.4 }}>Hover over field labels for hints. Try the Wizard for guided help.</span>
+                <button onClick={() => setView("wizard")} style={{ marginLeft: "auto", background: "#1e3a5f", border: "1px solid #2d5a8e", borderRadius: 6, color: "#60a5fa", cursor: "pointer", fontSize: 10, padding: "3px 8px", fontFamily: "'JetBrains Mono', monospace", whiteSpace: "nowrap" }}>🧙 Wizard</button>
+              </div>
+            )}
+
+            {/* Form content — scrollable */}
+            <div style={{ padding: "12px 16px 24px" }} className="fade">
               <ResourceForm type={selected} form={form} onChange={(newForm) => updateForm(selected, newForm)} bundle={bundle} onCreateLinked={handleCreateLinked} theme={theme} />
 
-              <div style={{ display: "flex", gap: 6, marginTop: 16, paddingTop: 12, borderTop: `1px solid ${theme.border}` }}>
-                <button onClick={addToBundle} style={{ flex: 1, background: theme.accentSoft, border: `1px solid ${theme.accent}40`, borderRadius: 7, color: theme.accent, cursor: "pointer", fontSize: 11.5, fontFamily: "'JetBrains Mono', monospace", padding: "9px", fontWeight: 600 }}>
+              {/* Action buttons — sticky bottom feel */}
+              <div style={{ display: "flex", gap: 6, marginTop: 16, paddingTop: 12, borderTop: `1px solid ${theme.border}`, position: "sticky", bottom: 0, background: theme.bgCard, padding: "12px 0" }}>
+                <button onClick={addToBundle} style={{ flex: 1, background: theme.accentSoft, border: `1px solid ${theme.accent}40`, borderRadius: 8, color: theme.accent, cursor: "pointer", fontSize: 11.5, fontFamily: "'JetBrains Mono', monospace", padding: "10px", fontWeight: 600, transition: "all 150ms ease" }}
+                  onMouseEnter={e => { e.currentTarget.style.background = theme.accent + "30"; }}
+                  onMouseLeave={e => { e.currentTarget.style.background = theme.accentSoft; }}
+                >
                   + Add to Bundle
                 </button>
                 <button onClick={() => { setBundle(b => ({ ...b, [selected]: form })); setView("bundle"); }}
-                  style={{ background: "transparent", border: `1px solid ${theme.border}`, borderRadius: 7, color: theme.textMuted, cursor: "pointer", fontSize: 11, fontFamily: "'JetBrains Mono', monospace", padding: "9px 10px" }}>
+                  style={{ background: "transparent", border: `1px solid ${theme.border}`, borderRadius: 8, color: theme.textMuted, cursor: "pointer", fontSize: 11, fontFamily: "'JetBrains Mono', monospace", padding: "10px 12px", transition: "all 150ms ease" }}
+                  onMouseEnter={e => { e.currentTarget.style.borderColor = theme.accent; e.currentTarget.style.color = theme.accent; }}
+                  onMouseLeave={e => { e.currentTarget.style.borderColor = theme.border; e.currentTarget.style.color = theme.textMuted; }}
+                >
                   Bundle →
                 </button>
               </div>
 
               {/* Save Snippet */}
               <div style={{ display: "flex", gap: 6, marginTop: 8 }}>
-                <input value={snippetName} onChange={e => setSnippetName(e.target.value)} placeholder="Snippet name..." style={{ flex: 1, background: theme.bgInput, border: `1px solid ${theme.border}`, borderRadius: 7, color: theme.text, fontSize: 11.5, fontFamily: "'JetBrains Mono', monospace", padding: "7px 10px", outline: "none" }} />
-                <button onClick={saveSnippet} style={{ background: "transparent", border: `1px solid ${theme.border}`, borderRadius: 7, color: theme.textMuted, cursor: "pointer", fontSize: 11, fontFamily: "'JetBrains Mono', monospace", padding: "7px 10px" }}>💾 Save</button>
+                <input value={snippetName} onChange={e => setSnippetName(e.target.value)} placeholder="Snippet name..." style={{ flex: 1, background: theme.bgInput, border: `1px solid ${theme.border}`, borderRadius: 7, color: theme.text, fontSize: 11.5, fontFamily: "'JetBrains Mono', monospace", padding: "8px 10px", outline: "none", transition: "border-color 150ms ease" }}
+                  onFocus={e => { e.currentTarget.style.borderColor = theme.borderFocus; }}
+                  onBlur={e => { e.currentTarget.style.borderColor = theme.border; }}
+                />
+                <button onClick={saveSnippet} style={{ background: "transparent", border: `1px solid ${theme.border}`, borderRadius: 7, color: theme.textMuted, cursor: "pointer", fontSize: 11, fontFamily: "'JetBrains Mono', monospace", padding: "8px 10px", transition: "all 150ms ease" }}
+                  onMouseEnter={e => { e.currentTarget.style.borderColor = theme.accent; e.currentTarget.style.color = theme.accent; }}
+                  onMouseLeave={e => { e.currentTarget.style.borderColor = theme.border; e.currentTarget.style.color = theme.textMuted; }}
+                >💾 Save</button>
               </div>
             </div>
           </div>
 
-          {/* YAML Output */}
+          {/* YAML Output — proper scrolling */}
           <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
             {/* Validation Bar */}
             {showValidation && (
-              <div style={{ padding: "8px 16px", borderBottom: `1px solid ${theme.border}`, background: theme.bgCard, display: "flex", gap: 6, flexWrap: "wrap" }}>
+              <div style={{ padding: "8px 16px", borderBottom: `1px solid ${theme.border}`, background: theme.bgCard, display: "flex", gap: 6, flexWrap: "wrap", maxHeight: 120, overflowY: "auto" }}>
                 {validation.map((v, i) => (
                   <div key={i} style={{ display: "flex", alignItems: "center", gap: 4 }}>
                     <span style={{ fontSize: 11, padding: "3px 10px", borderRadius: 4, background: v.type === "error" ? "#1a0808" : v.type === "warning" ? "#1a1200" : v.type === "success" ? "#081a08" : "#081218", color: v.type === "error" ? "#f87171" : v.type === "warning" ? "#fbbf24" : v.type === "success" ? "#4ade80" : "#60a5fa", border: `1px solid ${v.type === "error" ? "#3a1010" : v.type === "warning" ? "#3a2800" : v.type === "success" ? "#1a3a1a" : "#103040"}` }}>
