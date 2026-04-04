@@ -62,7 +62,7 @@ spec:
             periodSeconds: 30
           # ── Container-level security ──
           securityContext:
-            readOnlyRootFilesystem: true
+            readOnlyRootFilesystem: false
             allowPrivilegeEscalation: false
             capabilities:
               drop:
@@ -74,8 +74,6 @@ spec:
               mountPath: /var/run
             - name: nginx-client-body
               mountPath: /etc/nginx/client-body
-            - name: nginx-conf
-              mountPath: /etc/nginx/conf.d
 
         # ── Backend (node) ──
         - name: backend
@@ -125,7 +123,6 @@ spec:
               drop:
                 - ALL
       volumes:
-        # Nginx needs writable dirs for cache and temp files (readOnlyRootFilesystem: true)
         - name: nginx-cache
           emptyDir:
             sizeLimit: 50Mi
@@ -135,6 +132,3 @@ spec:
         - name: nginx-client-body
           emptyDir:
             sizeLimit: 50Mi
-        - name: nginx-conf
-          emptyDir:
-            sizeLimit: 10Mi
