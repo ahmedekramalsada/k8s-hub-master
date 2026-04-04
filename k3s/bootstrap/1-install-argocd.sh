@@ -43,15 +43,20 @@ if [ -n "$OPENROUTER_API_KEY" ]; then
   echo ">>> OpenRouter API key detected — will configure AI"
 fi
 
-# ── Add 2GB swap ──
+# ── Add 2GB swap (skip if already active) ──
 echo ""
 echo ">>> [1/8] Setting up swap..."
-sudo fallocate -l 2G /swapfile 2>/dev/null || true
-sudo chmod 600 /swapfile
-sudo mkswap /swapfile
-sudo swapon /swapfile
-echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab >/dev/null
-echo "✅ Swap enabled"
+if grep -q '/swapfile' /proc/swaps 2>/dev/null; then
+  echo "✅ Swap already active"
+else
+  sudo fallocate -l 2G /swapfile 2>/dev/null || sudo dd if=/dev/zero of=/swapfile bs=1M count=2048 2>/dev/null || true
+  sudo chmod 600 /swapfile 2>/dev/null || true
+  sudo mkswap /swapfile 2>/dev/null || true
+  sudo swapon /swapfile 2>/dev/null || true
+  grep -q '/swapfile' /etc/fstab 2>/dev/null || echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab >/dev/null 2>&1 || true
+  echo "✅ Swap configured"
+fi
+free -h
 
 # ── Install K3s ──
 echo ">>> [2/8] Installing K3s..."
