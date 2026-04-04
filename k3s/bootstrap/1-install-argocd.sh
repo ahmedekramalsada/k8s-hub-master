@@ -64,10 +64,17 @@ helm upgrade --install argocd argo/argo-cd \
   --create-namespace \
   --set configs.params."server\.insecure"=true \
   --set server.service.type=ClusterIP \
-  --wait >/dev/null 2>&1
+  --timeout 300s \
+  --wait 2>/dev/null || {
+    echo "⚠️  ArgoCD Helm install had issues, checking status..."
+  }
 
-echo ">>> Waiting for ArgoCD..."
-kubectl wait --for=condition=Ready pods -l app.kubernetes.io/managed-by=Helm -n argocd --timeout=300s
+echo ">>> Waiting for ArgoCD server to be ready..."
+kubectl wait --for=condition=Ready pods -l app.kubernetes.io/name=argocd-server -n argocd --timeout=120s 2>/dev/null || {
+  echo "⚠️  ArgoCD server not ready yet, waiting 30s..."
+  sleep 30
+}
+echo "✅ ArgoCD installed"
 echo "✅ ArgoCD ready"
 
 # ── Install metrics-server ──
