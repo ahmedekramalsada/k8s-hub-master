@@ -20,40 +20,19 @@
 
 set -e
 
-SERVER_IP=$(curl -s ifconfig.me 2>/dev/null || echo "YOUR_SERVER_IP")
-
-echo ""
-echo "╔═══════════════════════════════════════════════════════╗"
-echo "║         K8s Hub — One-Click Installer                 ║"
-echo "║         Server: $SERVER_IP                            ║"
-echo "╚═══════════════════════════════════════════════════════╝"
-echo ""
-
-# ── Check for Infisical ──
-USE_INFISICAL=false
-if [ -n "$INFISICAL_CLIENT_ID" ] && [ -n "$INFISICAL_CLIENT_SECRET" ]; then
-  USE_INFISICAL=true
-  echo ">>> Infisical credentials detected — will configure ESO"
-fi
-
-# ── Check for OpenRouter API key ──
-USE_OPENROUTER=false
-if [ -n "$OPENROUTER_API_KEY" ]; then
-  USE_OPENROUTER=true
-  echo ">>> OpenRouter API key detected — will configure AI"
-fi
-
 # ── Add 2GB swap (skip if already active) ──
 echo ""
 echo ">>> [1/8] Setting up swap..."
 if grep -q '/swapfile' /proc/swaps 2>/dev/null; then
   echo "✅ Swap already active"
 else
-  sudo fallocate -l 2G /swapfile 2>/dev/null || sudo dd if=/dev/zero of=/swapfile bs=1M count=2048 2>/dev/null || true
-  sudo chmod 600 /swapfile 2>/dev/null || true
-  sudo mkswap /swapfile 2>/dev/null || true
-  sudo swapon /swapfile 2>/dev/null || true
-  grep -q '/swapfile' /etc/fstab 2>/dev/null || echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab >/dev/null 2>&1 || true
+  {
+    fallocate -l 2G /swapfile 2>/dev/null || dd if=/dev/zero of=/swapfile bs=1M count=2048 2>/dev/null
+    chmod 600 /swapfile
+    mkswap /swapfile 2>/dev/null
+    swapon /swapfile 2>/dev/null
+    grep -q '/swapfile' /etc/fstab 2>/dev/null || echo '/swapfile none swap sw 0 0' >> /etc/fstab 2>/dev/null
+  } || true
   echo "✅ Swap configured"
 fi
 free -h
