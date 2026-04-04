@@ -1,0 +1,74 @@
+# ─────────────────────────────────────────────────────────────
+# HorizontalPodAutoscaler — Auto-scale based on CPU usage
+#
+# WHY THIS MATTERS:
+#   When traffic spikes, your 2 replicas might not be enough.
+#   HPA automatically adds more pods when CPU goes above the
+#   target, and removes them when traffic drops.
+#
+#   This saves money (scale down when idle) and prevents
+#   outages (scale up when busy).
+#
+#   Requires: metrics-server installed in the cluster
+#   (added in bootstrap/1-install-argocd.sh)
+#
+# HOW IT WORKS:
+#   1. metrics-server collects CPU/memory from each pod
+#   2. HPA controller checks every 15 seconds
+#   3. If avg CPU > 70% → scale up (add pods)
+#   4. If avg CPU < 70% → scale down (remove pods)
+#   5. Never goes below minReplicas or above maxReplicas
+#
+#   Formula: desiredReplicas = ceil(currentReplicas * (currentCPU / targetCPU))
+#
+#   Example: 2 pods at 80% CPU, target 70%
+#   desired = ceil(2 * (80/70)) = ceil(2.29) = 3 pods
+#
+# LEARN MORE:
+#   kubectl get hpa -n k8s-hub
+#   kubectl describe hpa k8s-hub-hpa -n k8s-hub
+#   kubectl top pods -n k8s-hub
+# ─────────────────────────────────────────────────────────────
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: k8s-hub-hpa
+  namespace: k8s-hub
+  labels:
+    app: k8s-hub
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: k8s-hub
+  minReplicas: 2
+  maxReplicas: 6
+  metrics:
+    # Scale based on CPU usage
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70
+    # Scale based on memory usage
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: 80
+  # Stabilization window prevents rapid scale up/down
+  behavior:
+    scaleUp:
+      stabilizationWindowSeconds: 60
+      policies:
+        - type: Pods
+          value: 1
+          periodSeconds: 60
+    scaleDown:
+      stabilizationWindowSeconds: 300
+      policies:
+        - type: Pods
+          value: 1
+          periodSeconds: 120

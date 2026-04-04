@@ -1,0 +1,74 @@
+# ─────────────────────────────────────────────────────────────
+# NetworkPolicy — Controls which pods can talk to each other
+#
+# WHY THIS MATTERS:
+#   Without NetworkPolicy, ANY pod in the cluster can talk to
+#   ANY other pod. If an attacker compromises one pod, they can
+#   reach everything. NetworkPolicy is like a firewall for pods.
+#
+# WHAT THIS DOES:
+#   1. DENY all ingress traffic to k8s-hub pods by default
+#   2. ALLOW ingress only from:
+#      - Pods with label app: traefik (the Ingress controller)
+#      - Pods within the same namespace (for frontend→backend)
+#   3. ALLOW egress to:
+#      - DNS (kube-dns) — required for service discovery
+#      - External HTTPS (port 443) — for OpenRouter API calls
+#
+# LEARN MORE:
+#   kubectl get networkpolicy -n k8s-hub
+#   kubectl describe networkpolicy k8s-hub-netpol -n k8s-hub
+# ─────────────────────────────────────────────────────────────
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: k8s-hub-netpol
+  namespace: k8s-hub
+spec:
+  podSelector:
+    matchLabels:
+      app: k8s-hub
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    # Allow traffic from the Ingress controller (Traefik in K3s)
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/name: traefik
+      ports:
+        - protocol: TCP
+          port: 80
+        - protocol: TCP
+          port: 3001
+    # Allow traffic from within the same namespace (frontend ↔ backend)
+    - from:
+        - podSelector:
+            matchLabels:
+              app: k8s-hub
+      ports:
+        - protocol: TCP
+          port: 80
+        - protocol: TCP
+          port: 3001
+  egress:
+    # Allow DNS resolution (required for all pod communication)
+    - to:
+        - namespaceSelector: {}
+          podSelector:
+            matchLabels:
+              k8s-app: kube-dns
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+    # Allow outbound HTTPS (for OpenRouter API calls from backend)
+    - to: []
+      ports:
+        - protocol: TCP
+          port: 443

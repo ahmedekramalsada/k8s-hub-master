@@ -12,7 +12,11 @@ import LandingPage from './pages/LandingPage.jsx'
 import GeneratorApp from './generator/app.jsx'
 import LearnApp from './pages/LearnApp.jsx'
 import ChatPage from './pages/ChatPage.jsx'
+import DocsPage from './pages/DocsPage.jsx'
 import { ToastProvider } from './components/ToastContext.jsx'
+import { ThemeProvider } from './contexts/ThemeContext.jsx'
+import { AIProvider } from './ai/AIContext.jsx'
+import AIFloatingWidget from './ai/AIFloatingWidget.jsx'
 
 class ErrorBoundary extends React.Component {
     constructor(props) {
@@ -48,17 +52,36 @@ class ErrorBoundary extends React.Component {
 
 ReactDOM.createRoot(document.getElementById('root')).render(
     <ErrorBoundary>
-        <ToastProvider>
-            <BrowserRouter>
-                <GlobalNav />
-                <Routes>
-                    <Route path="/" element={<LandingPage />} />
-                    <Route path="/generator/*" element={<GeneratorApp />} />
-                    <Route path="/learn/*" element={<LearnApp />} />
-                    <Route path="/chat" element={<ChatPage />} />
-                    <Route path="*" element={<Navigate to="/" replace />} />
-                </Routes>
-            </BrowserRouter>
-        </ToastProvider>
+        <ThemeProvider>
+            <AIProviderWrapper>
+                <ToastProvider>
+                    <BrowserRouter>
+                        <GlobalNav />
+                        <Routes>
+                            <Route path="/" element={<LandingPage />} />
+                            <Route path="/generator/*" element={<GeneratorApp />} />
+                            <Route path="/learn/*" element={<LearnApp />} />
+                            <Route path="/chat" element={<ChatPage />} />
+                            <Route path="/docs" element={<DocsPage />} />
+                            <Route path="*" element={<Navigate to="/" replace />} />
+                        </Routes>
+                        <AIFloatingWidget />
+                    </BrowserRouter>
+                </ToastProvider>
+            </AIProviderWrapper>
+        </ThemeProvider>
     </ErrorBoundary>
 )
+
+function AIProviderWrapper({ children }) {
+    const [aiEnabled, setAiEnabled] = React.useState(false);
+
+    React.useEffect(() => {
+        fetch('/api/config?t=' + Date.now())
+            .then(res => res.ok ? res.json() : null)
+            .then(data => setAiEnabled(data?.aiEnabled || false))
+            .catch(() => setAiEnabled(false));
+    }, []);
+
+    return <AIProvider enabled={aiEnabled}>{children}</AIProvider>;
+}

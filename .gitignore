@@ -133,3 +133,9 @@ mockup-v2.html
 # Session history
 session_history_nav_interview.md
 SESSION_HISTORY.md
+
+# Vite
+*.local
+
+# Backend build
+backend/dist/

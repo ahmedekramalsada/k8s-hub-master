@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
+import Footer from '../components/Footer.jsx';
 
 const MODULES = [
     { id: 0, emoji: "🐳", title: "Docker Fundamentals", level: "Beginner", estTimeMin: 45, labCount: 6 },
@@ -46,6 +47,30 @@ const TECH_STACK = [
     { icon: '🔄', name: 'ArgoCD' },
     { icon: '🛡️', name: 'Vault' },
     { icon: '📊', name: 'Prometheus' },
+];
+
+const HOW_IT_WORKS = [
+    {
+        step: '01',
+        icon: '🎯',
+        title: 'Choose a Resource',
+        desc: 'Pick from 25+ Kubernetes resource types — Deployments, Services, Ingress, HPA, Secrets, and more.',
+        color: '#6366f1',
+    },
+    {
+        step: '02',
+        icon: '⚙️',
+        title: 'Configure with Forms',
+        desc: 'Fill in intuitive forms with intelligent defaults, image detection, and real-time validation.',
+        color: '#10b981',
+    },
+    {
+        step: '03',
+        icon: '🚀',
+        title: 'Deploy Your YAML',
+        desc: 'Get production-ready YAML with security scoring. Download, bundle, or export as Helm charts.',
+        color: '#a78bfa',
+    },
 ];
 
 /* ── Animated Grid Background ──────────────────────────────────────── */
@@ -185,13 +210,21 @@ export default function LandingPage() {
                     Generate production-ready YAML manifests with AI assistance, or master Kubernetes through interactive modules with hands-on labs and real-world scenarios.
                 </p>
 
-                <div className="animate-in delay-3" style={{ display: 'flex', gap: 'var(--sp-4)', justifyContent: 'center', flexWrap: 'wrap' }}>
+                <div className="animate-in delay-3" style={{ display: 'flex', gap: 'var(--sp-4)', justifyContent: 'center', flexWrap: 'wrap', alignItems: 'center' }}>
                     <Link to="/generator" className="btn btn-primary btn-lg" style={{ boxShadow: '0 4px 24px rgba(99,102,241,0.35)' }}>
                         ⚡ YAML Generator
                     </Link>
                     <Link to="/learn" className="btn btn-ghost btn-lg">
                         📚 Start Learning
                     </Link>
+                    <a href="https://github.com/ahmedekramalsada/k8s-hub-master" target="_blank" rel="noopener noreferrer"
+                        style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--text-muted)', fontSize: 14, textDecoration: 'none', padding: '10px 18px', borderRadius: 'var(--radius-lg)', border: '1px solid var(--border-subtle)', background: 'var(--bg-card)', transition: 'all 150ms ease' }}
+                        onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--border-strong)'; e.currentTarget.style.color = 'var(--text-primary)'; }}
+                        onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border-subtle)'; e.currentTarget.style.color = 'var(--text-muted)'; }}
+                    >
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/></svg>
+                        GitHub
+                    </a>
                 </div>
             </section>
 
@@ -236,6 +269,48 @@ export default function LandingPage() {
                                 </p>
                             </div>
                         </Link>
+                    ))}
+                </div>
+            </section>
+
+            {/* ── How It Works ────────────────────────────────────── */}
+            <section className="container" style={{ position: 'relative', zIndex: 1, marginBottom: 'var(--sp-20)' }}>
+                <div style={{ textAlign: 'center', marginBottom: 'var(--sp-10)' }}>
+                    <h2 className="text-gradient animate-in" style={{ fontFamily: "var(--font-display)", fontWeight: 800, fontSize: 'var(--text-3xl)', marginBottom: 'var(--sp-2)' }}>
+                        How It Works
+                    </h2>
+                    <p style={{ color: 'var(--text-muted)', fontSize: 'var(--text-sm)', fontFamily: 'var(--font-mono)' }}>
+                        Three steps from zero to production-ready Kubernetes manifests
+                    </p>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 'var(--sp-5)', position: 'relative' }}>
+                    {HOW_IT_WORKS.map((item, i) => (
+                        <div key={item.step} className={`card animate-in delay-${i + 1}`} style={{ position: 'relative', padding: 'var(--sp-8) var(--sp-6)', textAlign: 'center' }}>
+                            {/* Step number */}
+                            <div style={{
+                                position: 'absolute', top: -16, left: '50%', transform: 'translateX(-50%)',
+                                background: item.color, color: 'white', fontSize: 11, fontWeight: 800,
+                                padding: '4px 14px', borderRadius: 'var(--radius-full)',
+                                fontFamily: 'var(--font-mono)', letterSpacing: '0.05em',
+                            }}>{item.step}</div>
+
+                            <div style={{ fontSize: 40, marginBottom: 'var(--sp-4)' }}>{item.icon}</div>
+                            <h3 style={{ fontFamily: "var(--font-display)", fontWeight: 800, color: item.color, fontSize: 'var(--text-lg)', margin: '0 0 var(--sp-2)' }}>
+                                {item.title}
+                            </h3>
+                            <p style={{ color: 'var(--text-secondary)', fontSize: 'var(--text-sm)', lineHeight: 1.7, margin: 0 }}>
+                                {item.desc}
+                            </p>
+
+                            {/* Arrow connector (hidden on mobile) */}
+                            {i < HOW_IT_WORKS.length - 1 && (
+                                <div className="hide-mobile" style={{
+                                    position: 'absolute', right: -20, top: '50%', transform: 'translateY(-50%)',
+                                    color: 'var(--text-dim)', fontSize: 20, zIndex: 2,
+                                }}>→</div>
+                            )}
+                        </div>
                     ))}
                 </div>
             </section>
@@ -309,29 +384,22 @@ export default function LandingPage() {
                 <p style={{ color: 'var(--text-secondary)', fontSize: 'var(--text-base)', maxWidth: 500, margin: '0 auto var(--sp-8)' }}>
                     Start generating production-ready manifests or dive into interactive learning — both powered by AI.
                 </p>
-                <div style={{ display: 'flex', gap: 'var(--sp-4)', justifyContent: 'center', flexWrap: 'wrap' }}>
+                <div style={{ display: 'flex', gap: 'var(--sp-4)', justifyContent: 'center', flexWrap: 'wrap', alignItems: 'center' }}>
                     <Link to="/generator" className="btn btn-primary btn-lg">Get Started Free ⚡</Link>
                     <Link to="/learn" className="btn btn-outline btn-lg">Browse Modules →</Link>
+                    <a href="https://github.com/ahmedekramalsada/k8s-hub-master" target="_blank" rel="noopener noreferrer"
+                        style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--text-muted)', fontSize: 14, textDecoration: 'none', padding: '12px 22px', borderRadius: 'var(--radius-lg)', border: '1px solid var(--border-subtle)', background: 'var(--bg-card)', transition: 'all 150ms ease' }}
+                        onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--border-strong)'; e.currentTarget.style.color = 'var(--text-primary)'; }}
+                        onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border-subtle)'; e.currentTarget.style.color = 'var(--text-muted)'; }}
+                    >
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/></svg>
+                        Star on GitHub
+                    </a>
                 </div>
             </section>
 
             {/* ── Footer ──────────────────────────────────────────── */}
-            <footer style={{ position: 'relative', zIndex: 1, borderTop: '1px solid var(--border-subtle)', padding: 'var(--sp-8) var(--sp-10)' }}>
-                <div className="container" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 'var(--sp-4)' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-2)' }}>
-                        <span style={{ fontSize: 18 }}>☸️</span>
-                        <span className="text-gradient-brand" style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 'var(--text-sm)' }}>K8s Hub</span>
-                    </div>
-                    <div style={{ display: 'flex', gap: 'var(--sp-6)' }}>
-                        <Link to="/generator" style={{ color: 'var(--text-muted)', fontSize: 'var(--text-xs)', textDecoration: 'none', fontFamily: 'var(--font-mono)' }}>Generator</Link>
-                        <Link to="/learn" style={{ color: 'var(--text-muted)', fontSize: 'var(--text-xs)', textDecoration: 'none', fontFamily: 'var(--font-mono)' }}>Learn</Link>
-                        <Link to="/chat" style={{ color: 'var(--text-muted)', fontSize: 'var(--text-xs)', textDecoration: 'none', fontFamily: 'var(--font-mono)' }}>AI Chat</Link>
-                    </div>
-                    <div style={{ color: 'var(--text-dim)', fontSize: 'var(--text-xs)', fontFamily: 'var(--font-mono)' }}>
-                        Built with React + Vite • Deployed on K3s
-                    </div>
-                </div>
-            </footer>
+            <Footer />
         </div>
     );
 }

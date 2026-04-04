@@ -753,10 +753,23 @@ export function YAMLPanel({ yaml, resourceType, theme, onCopy, onDownload, copie
         </div>
       </div>
 
-      {/* YAML */}
-      <div style={{ flex: 1, overflow: "auto", padding: "16px" }}>
+      {/* YAML with line numbers */}
+      <div style={{ flex: 1, overflow: "auto", display: "flex", padding: "16px 16px 16px 0" }}>
+        {/* Line numbers gutter */}
+        <div style={{
+          width: 40, flexShrink: 0, background: theme.yamlBg,
+          borderRight: '1px solid var(--border-subtle)',
+          padding: '20px 0', userSelect: 'none', textAlign: 'right',
+          fontFamily: "'JetBrains Mono', monospace", fontSize: 11,
+          color: theme.textDim, lineHeight: 1.8,
+        }}>
+          {yaml.split("\n").map((_, i) => (
+            <div key={i} style={{ height: '1.8em', paddingRight: 10 }}>{i + 1}</div>
+          ))}
+        </div>
+        {/* YAML content */}
         <pre
-          style={{ background: theme.yamlBg, border: `1px solid ${theme.border}`, borderRadius: 10, fontFamily: "'JetBrains Mono', monospace", fontSize: 12.5, lineHeight: 1.8, padding: "20px 24px", minHeight: "100%", color: theme.yamlText, overflow: "auto", margin: 0 }}
+          style={{ flex: 1, background: theme.yamlBg, border: `1px solid ${theme.border}`, borderRadius: '0 10px 10px 0', fontFamily: "'JetBrains Mono', monospace", fontSize: 12.5, lineHeight: 1.8, padding: "20px 24px", minHeight: "100%", color: theme.yamlText, overflow: "auto", margin: 0 }}
           dangerouslySetInnerHTML={{ __html: highlighted }}
         />
       </div>

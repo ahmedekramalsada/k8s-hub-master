@@ -1,9 +1,27 @@
+# ─────────────────────────────────────────────────────────────
+# Ingress — Routes external traffic into the cluster
+#
+# CURRENT STATE: HTTP only, no host, no TLS
+#   Traffic flows: User → Server IP → Traefik → Service → Pod
+#
+# TODO FOR PRODUCTION:
+#   1. Replace "your-domain.com" with your actual domain
+#   2. Uncomment the TLS section after cert-manager is installed
+#   3. Create a ClusterIssuer (see Phase 3: cert-manager)
+# ─────────────────────────────────────────────────────────────
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: k8s-hub
   namespace: k8s-hub
+  annotations:
+    # Traefik-specific: redirect HTTP → HTTPS (uncomment when TLS is ready)
+    # traefik.ingress.kubernetes.io/router.middlewares: k8s-hub-redirect-scheme@kubernetescrd
 spec:
+  # TODO: Replace with your actual domain
+  # rules:
+  #   - host: your-domain.com
+  #     http:
   rules:
     - http:
         paths:
@@ -14,3 +32,8 @@ spec:
                 name: k8s-hub
                 port:
                   number: 80
+  # ── TLS — Uncomment after cert-manager + ClusterIssuer are installed ──
+  # tls:
+  #   - hosts:
+  #       - your-domain.com
+  #     secretName: k8s-hub-tls

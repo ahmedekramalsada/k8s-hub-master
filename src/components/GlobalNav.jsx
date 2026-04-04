@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
+import { useTheme } from '../contexts/ThemeContext.jsx';
 
 const NAV_SECTIONS = [
     { path: '/', label: 'Home', icon: '🏠', exact: true },
@@ -171,19 +172,11 @@ export default function GlobalNav() {
 }
 
 function ThemeToggle() {
-    const [dark, setDark] = useState(() => {
-        const stored = localStorage.getItem('k8s_theme');
-        return stored !== 'light';
-    });
-
-    useEffect(() => {
-        document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
-        localStorage.setItem('k8s_theme', dark ? 'dark' : 'light');
-    }, [dark]);
+    const { dark, toggle } = useTheme();
 
     return (
         <button
-            onClick={() => setDark(d => !d)}
+            onClick={toggle}
             aria-label="Toggle theme"
             title={dark ? 'Switch to light mode' : 'Switch to dark mode'}
             style={{

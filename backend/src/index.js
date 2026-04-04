@@ -2,11 +2,50 @@ const express = require('express');
 const cors = require('cors');
 const axios = require('axios');
 const rateLimit = require('express-rate-limit');
+const client = require('prom-client');
 require('dotenv').config();
 
 const app = express();
 app.set('trust proxy', 1);
 const PORT = process.env.PORT || 3001;
+
+// ── Prometheus metrics ──
+const register = new client.Registry();
+client.collectDefaultMetrics({ register });
+
+const httpRequestDuration = new client.Histogram({
+  name: 'k8s_hub_request_duration_seconds',
+  help: 'Duration of HTTP requests in seconds',
+  labelNames: ['method', 'route', 'status_code'],
+  buckets: [0.01, 0.05, 0.1, 0.5, 1, 2, 5],
+  registers: [register],
+});
+
+const httpRequestTotal = new client.Counter({
+  name: 'k8s_hub_requests_total',
+  help: 'Total number of HTTP requests',
+  labelNames: ['method', 'route', 'status_code'],
+  registers: [register],
+});
+
+const aiChatTotal = new client.Counter({
+  name: 'k8s_hub_ai_chats_total',
+  help: 'Total number of AI chat requests',
+  labelNames: ['model', 'status'],
+  registers: [register],
+});
+
+// Metrics middleware — tracks every request
+app.use((req, res, next) => {
+  const start = Date.now();
+  res.on('finish', () => {
+    const duration = (Date.now() - start) / 1000;
+    const route = req.route ? req.route.path : req.path;
+    httpRequestDuration.labels(req.method, route, res.statusCode).observe(duration);
+    httpRequestTotal.labels(req.method, route, res.statusCode).inc();
+  });
+  next();
+});
 
 // Rate limiter for AI chat endpoint (20 requests per minute per IP)
 const aiChatLimiter = rateLimit({
@@ -94,17 +133,26 @@ app.post('/api/ai/chat', aiChatLimiter, async (req, res) => {
 
         const content = response.data.choices?.[0]?.message?.content;
 
+        aiChatTotal.labels(model, 'success').inc();
+
         res.json({
             reply: content || "No response content from AI.",
             error: null
         });
     } catch (error) {
         console.error('AI Proxy Error:', error.response?.data || error.message);
+        aiChatTotal.labels(model, 'error').inc();
         res.status(error.response?.status || 500).json({
             reply: null,
             error: error.response?.data?.error?.message || error.message || "The AI service is currently unavailable. Please check server configuration."
         });
     }
+});
+
+// GET /metrics — Prometheus metrics endpoint
+app.get('/metrics', async (req, res) => {
+  res.set('Content-Type', register.contentType);
+  res.end(await register.metrics());
 });
 
 // Graceful shutdown

@@ -67,6 +67,13 @@ kubectl apply -n argocd -f \
 echo ">>> Waiting for ArgoCD to be ready..."
 kubectl wait --for=condition=Ready pods --all -n argocd --timeout=300s
 
+# ── Install metrics-server (required for HPA) ──
+echo ">>> Installing metrics-server..."
+kubectl apply -f https://github.com/kubernetes-sigs/metrics-server/releases/latest/download/components.yaml
+
+echo ">>> Waiting for metrics-server to be ready..."
+kubectl wait --for=condition=Ready pods -l k8s-app=metrics-server -n kube-system --timeout=120s
+
 # ── Install Helm ──
 echo ">>> Installing Helm..."
 curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash

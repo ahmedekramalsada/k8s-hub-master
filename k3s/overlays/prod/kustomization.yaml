@@ -1,0 +1,59 @@
+# ─────────────────────────────────────────────────────────────
+# Prod Overlay — Production-grade config
+# ─────────────────────────────────────────────────────────────
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - ../base
+
+namePrefix: prod-
+
+patches:
+  # More replicas for production
+  - target:
+      kind: Deployment
+      name: k8s-hub
+    patch: |
+      - op: replace
+        path: /spec/replicas
+        value: 3
+
+  # Higher HPA limits for production
+  - target:
+      kind: HorizontalPodAutoscaler
+      name: k8s-hub-hpa
+    patch: |
+      - op: replace
+        path: /spec/minReplicas
+        value: 3
+      - op: replace
+        path: /spec/maxReplicas
+        value: 10
+
+  # Higher resource limits for production
+  - target:
+      kind: Deployment
+      name: k8s-hub
+    patch: |
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/limits/cpu
+        value: 500m
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/limits/memory
+        value: 256Mi
+      - op: replace
+        path: /spec/template/spec/containers/1/resources/limits/cpu
+        value: 1000m
+      - op: replace
+        path: /spec/template/spec/containers/1/resources/limits/memory
+        value: 512Mi
+
+  # Stricter PDB for production
+  - target:
+      kind: PodDisruptionBudget
+      name: k8s-hub-pdb
+    patch: |
+      - op: replace
+        path: /spec/minAvailable
+        value: 2

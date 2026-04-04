@@ -1,0 +1,46 @@
+# ─────────────────────────────────────────────────────────────
+# PodDisruptionBudget — Protects against voluntary disruptions
+#
+# WHY THIS MATTERS:
+#   When you drain a node for maintenance, or when K3s upgrades,
+#   K8s needs to evict pods. Without a PDB, it could kill ALL
+#   your pods at once → downtime.
+#
+# WHAT THIS DOES:
+#   Guarantees at least 1 pod stays running during voluntary
+#   disruptions (node drains, cluster upgrades, etc.)
+#
+#   With replicas: 2 and minAvailable: 1:
+#   - K8s can only evict 1 pod at a time
+#   - The other pod keeps serving traffic
+#   - Zero downtime during maintenance
+#
+# VOLUNTARY vs INVOLUNTARY disruptions:
+#   Voluntary (PDB protects against):
+#     - Node drain (kubectl drain)
+#     - Cluster upgrade
+#     - Node auto-scaling
+#     - ArgoCD sync with prune
+#
+#   Involuntary (PDB does NOT protect):
+#     - Pod crash (livenessProbe failure)
+#     - Node hardware failure
+#     - OOMKilled (out of memory)
+#     → These are handled by replicas + probes
+#
+# LEARN MORE:
+#   kubectl get pdb -n k8s-hub
+#   kubectl describe pdb k8s-hub-pdb -n k8s-hub
+# ─────────────────────────────────────────────────────────────
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: k8s-hub-pdb
+  namespace: k8s-hub
+  labels:
+    app: k8s-hub
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: k8s-hub

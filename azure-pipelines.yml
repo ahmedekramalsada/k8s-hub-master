@@ -1,6 +1,7 @@
 # ═══════════════════════════════════════════════════════════════════
 # Azure DevOps Pipeline — K8s Hub
-# Builds Docker images, pushes to Docker Hub, updates K8s manifests
+# Builds Docker images, scans for vulnerabilities, pushes to Docker Hub,
+# updates K8s manifests to trigger ArgoCD sync
 # ═══════════════════════════════════════════════════════════════════
 
 trigger:
@@ -12,6 +13,7 @@ trigger:
     exclude:
       - "*.md"
       - "k3s/*"
+      - "docs/*"
       - "mockup*.html"
 
 pr: none
@@ -25,17 +27,35 @@ variables:
     value: $(DOCKERHUB_USERNAME)/k8s-hub
   - name: BACKEND_IMAGE
     value: $(DOCKERHUB_USERNAME)/k8s-hub-backend
+  # Tag with git short SHA for traceability + build ID for uniqueness
   - name: IMAGE_TAG
     value: $(Build.BuildId)
+  - name: GIT_SHA
+    value: $[ variables['Build.SourceVersion'] ]
   - name: LATEST_TAG
     value: latest
 
 stages:
   # ═══════════════════════════════════════════════════════════════
+  # Stage 0: Validate YAML manifests
+  # ═══════════════════════════════════════════════════════════════
+  - stage: ValidateManifests
+    displayName: "Validate K8s Manifests"
+    jobs:
+      - job: validateYaml
+        displayName: "YAML Lint Check"
+        steps:
+          - script: |
+              pip install yamllint
+              yamllint -d relaxed k3s/manifests/*.yaml
+            displayName: "Lint K8s YAML files"
+
+  # ═══════════════════════════════════════════════════════════════
   # Stage 1: Build & Push Frontend
   # ═══════════════════════════════════════════════════════════════
   - stage: BuildFrontend
     displayName: "Build & Push Frontend"
+    dependsOn: ValidateManifests
     jobs:
       - job: buildFrontend
         displayName: "Frontend Docker Build"
@@ -66,6 +86,20 @@ stages:
               tags: |
                 $(IMAGE_TAG)
                 $(LATEST_TAG)
+
+          # Security scan with Trivy
+          - script: |
+              # Install Trivy
+              sudo apt-get install wget apt-transport-https gnupg -y
+              wget -qO - https://aquasecurity.github.io/trivy-repo/deb/public.key | sudo apt-key add -
+              echo "deb https://aquasecurity.github.io/trivy-repo/deb $(lsb_release -sc) main" | sudo tee -a /etc/apt/sources.list.d/trivy.list
+              sudo apt-get update
+              sudo apt-get install trivy -y
+
+              # Scan the built image (pull from Docker Hub after push)
+              trivy image --exit-code 0 --severity HIGH,CRITICAL --format table $(FRONTEND_IMAGE):$(IMAGE_TAG)
+            displayName: "Trivy Scan — Frontend Image"
+            condition: succeeded()
 
   # ═══════════════════════════════════════════════════════════════
   # Stage 2: Build & Push Backend
@@ -104,6 +138,20 @@ stages:
               tags: |
                 $(IMAGE_TAG)
                 $(LATEST_TAG)
+
+          # Security scan with Trivy
+          - script: |
+              # Install Trivy
+              sudo apt-get install wget apt-transport-https gnupg -y
+              wget -qO - https://aquasecurity.github.io/trivy-repo/deb/public.key | sudo apt-key add -
+              echo "deb https://aquasecurity.github.io/trivy-repo/deb $(lsb_release -sc) main" | sudo tee -a /etc/apt/sources.list.d/trivy.list
+              sudo apt-get update
+              sudo apt-get install trivy -y
+
+              # Scan the built image (pull from Docker Hub after push)
+              trivy image --exit-code 0 --severity HIGH,CRITICAL --format table $(BACKEND_IMAGE):$(IMAGE_TAG)
+            displayName: "Trivy Scan — Backend Image"
+            condition: succeeded()
 
   # ═══════════════════════════════════════════════════════════════
   # Stage 3: Update image tags in k3s manifests → triggers ArgoCD

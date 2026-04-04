@@ -1,0 +1,96 @@
+# ─────────────────────────────────────────────────────────────
+# Monitoring — kube-prometheus-stack via ArgoCD
+#
+# WHAT THIS INSTALLS:
+#   - Prometheus (metrics collection & storage)
+#   - Grafana (dashboards & visualization)
+#   - AlertManager (alerts & notifications)
+#   - Node Exporter (host-level metrics)
+#   - kube-state-metrics (K8s object metrics)
+#
+# RESOURCE REQUIREMENTS:
+#   ~1.5-2GB RAM, ~2 CPU cores
+#   For lighter setups, install standalone Prometheus + Grafana
+#
+# AFTER INSTALLATION:
+#   Grafana:  kubectl port-forward svc/prometheus-grafana -n monitoring 3000:80
+#   Prometheus: kubectl port-forward svc/prometheus-kube-prometheus-prometheus -n monitoring 9090:9090
+#
+#   Default Grafana credentials: admin / prom-operator
+# ─────────────────────────────────────────────────────────────
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: monitoring
+  namespace: argocd
+  labels:
+    app.kubernetes.io/part-of: k8s-hub
+spec:
+  project: default
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: monitoring
+  source:
+    repoURL: https://prometheus-community.github.io/helm-charts
+    chart: kube-prometheus-stack
+    targetRevision: 58.4.0
+    helm:
+      values: |
+        # Reduce resource usage for small clusters
+        prometheus:
+          prometheusSpec:
+            resources:
+              requests:
+                cpu: 200m
+                memory: 400Mi
+              limits:
+                cpu: 500m
+                memory: 800Mi
+            retention: 3d
+            storageSpec:
+              volumeClaimTemplate:
+                spec:
+                  accessModes: ["ReadWriteOnce"]
+                  resources:
+                    requests:
+                      storage: 5Gi
+        grafana:
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 200m
+              memory: 256Mi
+          adminPassword: k8shub-admin
+        alertmanager:
+          alertmanagerSpec:
+            resources:
+              requests:
+                cpu: 50m
+                memory: 64Mi
+              limits:
+                cpu: 100m
+                memory: 128Mi
+        kubeStateMetrics:
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 100m
+              memory: 128Mi
+        nodeExporter:
+          resources:
+            requests:
+              cpu: 50m
+              memory: 32Mi
+            limits:
+              cpu: 100m
+              memory: 64Mi
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

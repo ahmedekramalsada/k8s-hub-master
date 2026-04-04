@@ -1,0 +1,50 @@
+# ─────────────────────────────────────────────────────────────
+# Dev Overlay — Lightweight config for development
+# ─────────────────────────────────────────────────────────────
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - ../base
+
+namePrefix: dev-
+
+patches:
+  # Reduce replicas for dev
+  - target:
+      kind: Deployment
+      name: k8s-hub
+    patch: |
+      - op: replace
+        path: /spec/replicas
+        value: 1
+
+  # Reduce HPA limits for dev
+  - target:
+      kind: HorizontalPodAutoscaler
+      name: k8s-hub-hpa
+    patch: |
+      - op: replace
+        path: /spec/minReplicas
+        value: 1
+      - op: replace
+        path: /spec/maxReplicas
+        value: 3
+
+  # Lower resource requests for dev
+  - target:
+      kind: Deployment
+      name: k8s-hub
+    patch: |
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/requests/cpu
+        value: 25m
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/requests/memory
+        value: 32Mi
+      - op: replace
+        path: /spec/template/spec/containers/1/resources/requests/cpu
+        value: 25m
+      - op: replace
+        path: /spec/template/spec/containers/1/resources/requests/memory
+        value: 32Mi

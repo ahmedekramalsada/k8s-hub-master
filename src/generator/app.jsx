@@ -9,7 +9,11 @@ import { GENERATORS, RESOURCE_META, CATEGORIES, validateYAML, generateHelmChart,
 import { TopNav, Sidebar, YAMLPanel, Btn, Input, Textarea, Select, KVList, SecurityBadge, Section, FieldGroup, YAMLImporter, ImportedResourceCard, GenericResourceEditor, MobileStyles, AIChips, QuickCreateModal } from "./components.jsx";
 import { ResourceForm } from "./forms.jsx";
 import { useToast } from "../components/ToastContext.jsx";
+import { useAI } from "../ai/AIContext.jsx";
+import { SYSTEM_PROMPTS, QUICK_PROMPTS } from "../ai/prompts.js";
 import Dashboard from "./Dashboard.jsx";
+import LineNumbers from "./LineNumbers.jsx";
+import KeyboardShortcuts from "./KeyboardShortcuts.jsx";
 
 
 // ═══════════════════════════════════════════════════════════════════
@@ -100,7 +104,7 @@ function downloadFile(content, filename) {
 // ═══════════════════════════════════════════════════════════════════
 // AI VIEW
 // ═══════════════════════════════════════════════════════════════════
-function AIView({ currentType, currentYaml, theme, aiEnabled }) {
+function AIView({ currentType, currentYaml, theme, ai.enabled }) {
   const AI_WELCOME = "👋 Hi! I'm your K8s AI assistant.\n\nI can help you:\n• 🔍 Review your YAML for issues\n• 🛡️ Security audit your configs\n• 💡 Suggest best practices\n• 🔧 Debug deployment problems\n• 📚 Explain any Kubernetes concept\n\nType a question or click a quick prompt below!";
   const [messages, setMessages] = useState([{ role: "assistant", content: AI_WELCOME }]);
   const [input, setInput] = useState("");
@@ -183,7 +187,7 @@ Be concise and practical. Use code blocks for YAML examples. If asked in Arabic,
     });
   };
 
-  if (!aiEnabled) {
+  if (!ai.enabled) {
     return (
       <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", padding: 40, background: theme.bgCard }}>
         <div style={{ maxWidth: 400, textAlign: "center", animation: "fadeUp 0.3s ease" }}>
@@ -606,8 +610,7 @@ function LearnView({ theme }) {
 export default function App() {
 
   const [dark, setDark] = useState(() => localStorage.getItem("k8s_theme") !== "light");
-  
-  // Sync global theme
+
   useEffect(() => {
     const val = dark ? "dark" : "light";
     document.documentElement.setAttribute('data-theme', val);
@@ -631,70 +634,21 @@ export default function App() {
   const [beginnerMode, setBeginnerMode] = useState(() => localStorage.getItem("k8s_beginner") === "true");
   const [showMobileSidebar, setShowMobileSidebar] = useState(false);
   const [quickCreateKind, setQuickCreateKind] = useState(null);
+  const [showShortcuts, setShowShortcuts] = useState(false);
 
-  // ── Global AI State (floated up from AIView) ─────────────────────
-  const AI_WELCOME = "👋 Hi! I'm your K8s AI assistant.\n\nI can help you:\n• 🔍 Review your YAML for issues\n• 🛡️ Security audit your configs\n• 💡 Suggest best practices\n• 🔧 Debug deployment problems\n• 📚 Explain any Kubernetes concept\n\nClick any ⚡ AI button on the page, or type a question below!";
-  const [aiMessages, setAiMessages] = useState([{ role: "assistant", content: AI_WELCOME }]);
-  const [aiInput, setAiInput] = useState("");
-  const [aiLoading, setAiLoading] = useState(false);
-  const [aiPanelOpen, setAiPanelOpen] = useState(false);
-  const [aiModel, setAiModel] = useState("arcee-ai/trinity-large-preview:free");
-  const [aiEnabled, setAiEnabled] = useState(false);
-
-  useEffect(() => {
-    fetch(`/api/config?t=${Date.now()}`)
-      .then(res => {
-        if (!res.ok) throw new Error(`Status: ${res.status}`);
-        return res.json();
-      })
-      .then(data => setAiEnabled(data.aiEnabled))
-      .catch(() => setAiEnabled(false));
-  }, []);
+  // Use the new unified AI context
+  const ai = useAI();
 
   const theme = getTheme(dark);
 
-  // ── AI core send function ─────────────────────────────────────────
-  const aiSend = async (customPrompt) => {
-    const msg = (customPrompt || aiInput).trim();
-    if (!msg || aiLoading) return;
-    setAiInput("");
-    setAiMessages(m => [...m, { role: "user", content: msg }]);
-    setAiLoading(true);
-    const systemPrompt = `You are an expert Kubernetes DevOps assistant built into a K8s YAML Generator tool.
-Current resource type: ${selected}
-Current YAML:
-\`\`\`yaml
-${yaml}
-\`\`\`
-Help with: YAML review, security audits, best practices, troubleshooting. Be concise and practical. Use code blocks for YAML. If asked in Arabic, respond in Arabic.`;
-    try {
-      const res = await fetch("/api/ai/chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ model: aiModel, messages: [{ role: "system", content: systemPrompt }, ...aiMessages.filter((_, i) => i > 0).map(m => ({ role: m.role, content: m.content })), { role: "user", content: msg }], max_tokens: 1500 })
-      });
-      if (!res.ok) { const err = await res.json().catch(() => ({})); throw new Error(err.error?.message || `HTTP ${res.status}`); }
-      const data = await res.json();
-      setAiMessages(m => [...m, { role: "assistant", content: data.content || "Sorry, no response received." }]);
-    } catch (e) {
-      setAiMessages(m => [...m, { role: "assistant", content: `❌ Error: ${e.message}\n\nCheck your API key and model in ⚙️ Settings.` }]);
-    }
-    setAiLoading(false);
-  };
-
-  // Open panel + pre-fill prompt — does NOT auto-send so user can add context
+  // Open AI panel + pre-fill prompt
   const openAIPanel = (prompt) => {
-    setAiPanelOpen(true);
-    if (prompt) setAiInput(prompt);
-    // Focus textarea after a tick so user can immediately add more text
+    ai.setPanelOpen(true);
+    if (prompt) ai.setInput(prompt);
     setTimeout(() => {
       const ta = document.querySelector(".ai-panel-input");
       if (ta) { ta.focus(); ta.setSelectionRange(ta.value.length, ta.value.length); }
     }, 80);
-  };
-
-  const saveAiSettings = () => {
-    localStorage.setItem("openrouter_model", aiModel);
   };
 
   // Quick Create: map modal field values → form state for each kind
@@ -757,11 +711,13 @@ Help with: YAML review, security audits, best practices, troubleshooting. Be con
     const handler = (e) => {
       if ((e.ctrlKey || e.metaKey) && e.key === "s") { e.preventDefault(); downloadCurrentYAML(); }
       if ((e.ctrlKey || e.metaKey) && e.key === "d") { e.preventDefault(); downloadBundle(); }
-      if ((e.ctrlKey || e.metaKey) && e.key === "k") { e.preventDefault(); setView("ai"); }
+      if ((e.ctrlKey || e.metaKey) && e.key === "k") { e.preventDefault(); ai.setPanelOpen(o => !o); }
+      if ((e.ctrlKey || e.metaKey) && e.key === "b") { e.preventDefault(); if (view === "generator") addToBundle(); }
+      if ((e.ctrlKey || e.metaKey) && e.key === "?") { e.preventDefault(); setShowShortcuts(s => !s); }
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [forms, selected, bundle]);
+  }, [forms, selected, bundle, view]);
 
   const form = forms[selected] || {};
   const generator = GENERATORS[selected];
@@ -973,7 +929,7 @@ Help with: YAML review, security audits, best practices, troubleshooting. Be con
                 <div style={{ color: theme.textDim, fontSize: 10 }}>{meta?.desc}</div>
               </div>
               <button onClick={() => setForms(f => ({ ...f, [selected]: {} }))} style={{ background: "transparent", border: `1px solid ${theme.border}`, borderRadius: 5, color: theme.textDim, cursor: "pointer", fontSize: 10, padding: "3px 8px", fontFamily: "'JetBrains Mono', monospace" }}>Clear</button>
-              {aiEnabled && <button onClick={() => openAIPanel(`I'm configuring a Kubernetes ${selected}. Suggest best practices and improvements for my setup.`)} title="Ask AI for suggestions" style={{ background: "#6366f120", border: "1px solid #6366f140", borderRadius: 5, color: "#818cf8", cursor: "pointer", fontSize: 10, padding: "3px 8px", fontFamily: "'JetBrains Mono', monospace" }}>💡 AI</button>}
+              {ai.enabled && <button onClick={() => openAIPanel(`I'm configuring a Kubernetes ${selected}. Suggest best practices and improvements for my setup.`)} title="Ask AI for suggestions" style={{ background: "#6366f120", border: "1px solid #6366f140", borderRadius: 5, color: "#818cf8", cursor: "pointer", fontSize: 10, padding: "3px 8px", fontFamily: "'JetBrains Mono', monospace" }}>💡 AI</button>}
             </div>
 
             <div style={{ padding: "14px 16px" }} className="fade">
@@ -1007,7 +963,7 @@ Help with: YAML review, security audits, best practices, troubleshooting. Be con
                     <span style={{ fontSize: 11, padding: "3px 10px", borderRadius: 4, background: v.type === "error" ? "#1a0808" : v.type === "warning" ? "#1a1200" : v.type === "success" ? "#081a08" : "#081218", color: v.type === "error" ? "#f87171" : v.type === "warning" ? "#fbbf24" : v.type === "success" ? "#4ade80" : "#60a5fa", border: `1px solid ${v.type === "error" ? "#3a1010" : v.type === "warning" ? "#3a2800" : v.type === "success" ? "#1a3a1a" : "#103040"}` }}>
                       {v.type === "error" ? "❌" : v.type === "warning" ? "⚠️" : v.type === "success" ? "✅" : "💡"} {v.msg}
                     </span>
-                    {aiEnabled && (v.type === "error" || v.type === "warning") && (
+                    {ai.enabled && (v.type === "error" || v.type === "warning") && (
                       <button onClick={() => openAIPanel(`Fix this Kubernetes YAML ${v.type}: "${v.msg}"\n\nHere is the current YAML:\n\n${yaml}`)} title="Ask AI to fix this" style={{ background: "#6366f110", border: "1px solid #6366f130", borderRadius: 4, color: "#818cf8", cursor: "pointer", fontSize: 9.5, padding: "2px 6px", fontFamily: "'JetBrains Mono', monospace" }}>🤖 fix</button>
                     )}
                   </div>
@@ -1023,11 +979,11 @@ Help with: YAML review, security audits, best practices, troubleshooting. Be con
               copied={copied}
               extraActions={<>
                 <Btn onClick={() => setShowValidation(!showValidation)} theme={theme} variant={showValidation ? "success" : "ghost"} style={{ fontSize: 11, padding: "6px 10px" }}>🔍 Validate</Btn>
-                {aiEnabled && <Btn onClick={() => openAIPanel(`Review this Kubernetes ${selected} YAML for issues, best practices, and security concerns:\n\n${yaml}`)} theme={theme} style={{ fontSize: 11, padding: "6px 10px", background: "#6366f120", border: "1px solid #6366f140", color: "#818cf8" }}>🤖 Ask AI</Btn>}
+                {ai.enabled && <Btn onClick={() => openAIPanel(`Review this Kubernetes ${selected} YAML for issues, best practices, and security concerns:\n\n${yaml}`)} theme={theme} style={{ fontSize: 11, padding: "6px 10px", background: "#6366f120", border: "1px solid #6366f140", color: "#818cf8" }}>🤖 Ask AI</Btn>}
               </>}
             />
             {/* AI Quick Actions row below the YAML panel */}
-            {aiEnabled && (
+            {ai.enabled && (
               <AIChips
                 theme={theme}
                 onAskAI={openAIPanel}
@@ -1243,7 +1199,7 @@ Help with: YAML review, security audits, best practices, troubleshooting. Be con
                       }} dangerouslySetInnerHTML={{ __html: highlightYAML(resourceYaml) }} />
 
                       {/* AI chips */}
-                      {aiEnabled && (
+                      {ai.enabled && (
                         <AIChips theme={theme} onAskAI={openAIPanel} chips={[
                           { label: "⚡ Explain", prompt: `Explain what this Kubernetes ${displayKind} does:\n\n${resourceYaml}` },
                           { label: "🔍 Review", prompt: `Review this Kubernetes ${displayKind} for issues and best practices:\n\n${resourceYaml}` },
@@ -1456,7 +1412,7 @@ Help with: YAML review, security audits, best practices, troubleshooting. Be con
 
       {/* ── AI nav click: toggle floating panel instead of page change ── */}
       {view === "ai" ? (
-        <AIView currentType={selected} currentYaml={yaml} theme={theme} aiEnabled={aiEnabled} />
+        <AIView currentType={selected} currentYaml={yaml} theme={theme} ai.enabled={ai.enabled} />
       ) : null}
       {view === "wizard" && <WizardView onLoadTemplate={applyTemplate} onView={setView} theme={theme} />}
       {view === "learn" && <LearnView theme={theme} />}
@@ -1472,6 +1428,9 @@ Help with: YAML review, security audits, best practices, troubleshooting. Be con
       )}
 
       {/* Global AI component is now injected into main.jsx directly! */}
+
+      {/* Keyboard Shortcuts Modal */}
+      {showShortcuts && <KeyboardShortcuts onClose={() => setShowShortcuts(false)} theme={theme} />}
     </div>
   );
 }

@@ -1,0 +1,39 @@
+# ─────────────────────────────────────────────────────────────
+# ServiceMonitor — Tells Prometheus to scrape our app's metrics
+#
+# WHY THIS MATTERS:
+#   Prometheus needs to know WHERE to find metrics.
+#   ServiceMonitor auto-discovers services with matching labels
+#   and starts scraping their /metrics endpoint.
+#
+#   This is how Prometheus knows about your app without
+#   manual configuration.
+#
+# HOW IT WORKS:
+#   1. Prometheus finds this ServiceMonitor
+#   2. It looks for Services matching selector: app=k8s-hub
+#   3. It scrapes /metrics on port 3001 every 15 seconds
+#   4. Metrics appear in Grafana dashboards
+#
+# NOTE: Requires prometheus-operator (kube-prometheus-stack)
+# LEARN MORE:
+#   kubectl get servicemonitor -n k8s-hub
+#   kubectl describe servicemonitor k8s-hub-metrics -n k8s-hub
+# ─────────────────────────────────────────────────────────────
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: k8s-hub-metrics
+  namespace: k8s-hub
+  labels:
+    app: k8s-hub
+    release: prometheus
+spec:
+  selector:
+    matchLabels:
+      app: k8s-hub
+  endpoints:
+    - port: api
+      path: /metrics
+      interval: 15s
+      scrapeTimeout: 10s
