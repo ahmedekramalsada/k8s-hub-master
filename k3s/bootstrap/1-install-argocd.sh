@@ -56,16 +56,24 @@ sudo cp /etc/rancher/k3s/k3s.yaml ~/.kube/config
 sudo chown $(id -u):$(id -g) ~/.kube/config
 export KUBECONFIG=~/.kube/config
 
-# ── Install ArgoCD ──
-echo ">>> Creating ArgoCD namespace..."
-kubectl create namespace argocd --dry-run=client -o yaml | kubectl apply -f -
+# ── Install Helm (needed for ArgoCD + ESO) ──
+echo ">>> Installing Helm..."
+curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
 
-echo ">>> Installing ArgoCD..."
-kubectl apply -n argocd -f \
-  https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
+# ── Install ArgoCD via Helm (avoids CRD annotation size bug) ──
+echo ">>> Installing ArgoCD via Helm..."
+helm repo add argo https://argoproj.github.io/argo-helm 2>/dev/null || true
+helm repo update
+
+helm upgrade --install argocd argo/argo-cd \
+  --namespace argocd \
+  --create-namespace \
+  --set configs.params."server\.insecure"=true \
+  --set server.service.type=ClusterIP \
+  --wait
 
 echo ">>> Waiting for ArgoCD to be ready..."
-kubectl wait --for=condition=Ready pods --all -n argocd --timeout=300s
+kubectl wait --for=condition=Ready pods -l app.kubernetes.io/managed-by=Helm -n argocd --timeout=300s
 
 # ── Install metrics-server (required for HPA) ──
 echo ">>> Installing metrics-server..."
@@ -107,7 +115,11 @@ kubectl create secret generic infisical-credentials \
 # ── Get ArgoCD password ──
 ARGOCD_PASSWORD=$(kubectl get secret argocd-initial-admin-secret \
   -n argocd \
-  -o jsonpath="{.data.password}" | base64 -d)
+  -o jsonpath="{.data.password}" | base64 -d 2>/dev/null || \
+  kubectl get secret argocd-admin-password \
+  -n argocd \
+  -o jsonpath="{.data.password}" | base64 -d 2>/dev/null || \
+  echo "Check: kubectl get secrets -n argocd | grep admin")
 
 echo ""
 echo "═══════════════════════════════════════════════════════"
