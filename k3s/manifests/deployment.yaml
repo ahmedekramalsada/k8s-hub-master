@@ -67,6 +67,13 @@ spec:
             capabilities:
               drop:
                 - ALL
+          volumeMounts:
+            - name: nginx-cache
+              mountPath: /var/cache/nginx
+            - name: nginx-run
+              mountPath: /var/run
+            - name: nginx-client-body
+              mountPath: /etc/nginx/client-body
 
         # ── Backend (node) ──
         - name: backend
@@ -115,3 +122,14 @@ spec:
             capabilities:
               drop:
                 - ALL
+      volumes:
+        # Nginx needs writable dirs for cache and temp files (readOnlyRootFilesystem: true)
+        - name: nginx-cache
+          emptyDir:
+            sizeLimit: 50Mi
+        - name: nginx-run
+          emptyDir:
+            sizeLimit: 1Mi
+        - name: nginx-client-body
+          emptyDir:
+            sizeLimit: 50Mi
