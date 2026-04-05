@@ -1,45 +1,48 @@
 function MobileTabSwitcher({ activeTab, onChange, theme }) {
-  const tabs = ['form', 'yaml', 'bundle']
+  const tabs = [
+    { id: 'form', label: '📝 Form' },
+    { id: 'yaml', label: '📄 YAML' },
+    { id: 'bundle', label: '📦 Bundle' },
+  ];
 
   return (
     <div
       className="show-mobile"
       style={{
-        display: 'none',
         display: 'flex',
         width: '100%',
-        border: `1px solid ${theme.border}`,
-        borderRadius: '8px',
-        overflow: 'hidden',
+        borderTop: `1px solid ${theme.border}`,
         backgroundColor: theme.bgCard,
+        padding: '4px 8px',
+        gap: 4,
       }}
     >
       {tabs.map((tab) => {
-        const isActive = activeTab === tab
+        const isActive = activeTab === tab.id;
         return (
           <button
-            key={tab}
-            onClick={() => onChange(tab)}
+            key={tab.id}
+            onClick={() => onChange(tab.id)}
             style={{
               flex: 1,
               padding: '10px 0',
-              border: 'none',
-              borderBottom: isActive ? `2px solid ${theme.border}` : 'none',
-              backgroundColor: isActive ? theme.bgCard : 'transparent',
-              color: isActive ? theme.textMuted : theme.textMuted,
-              fontWeight: isActive ? '600' : '400',
+              border: isActive ? `1px solid rgba(99,102,241,0.3)` : '1px solid transparent',
+              borderRadius: 8,
+              backgroundColor: isActive ? 'rgba(99,102,241,0.15)' : 'transparent',
+              color: isActive ? '#818cf8' : theme.textMuted,
+              fontWeight: isActive ? 700 : 500,
               cursor: 'pointer',
-              textTransform: 'capitalize',
-              fontSize: '14px',
-              outline: 'none',
+              fontSize: 12,
+              fontFamily: "'JetBrains Mono', monospace",
+              transition: 'all 150ms ease',
             }}
           >
-            {tab}
+            {tab.label}
           </button>
-        )
+        );
       })}
     </div>
-  )
+  );
 }
 
-export { MobileTabSwitcher }
+export { MobileTabSwitcher };
