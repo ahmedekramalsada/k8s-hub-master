@@ -662,9 +662,9 @@ export default function App() {
             <Sidebar selected={selected} onSelect={setSelected} search={search} onSearch={setSearch} theme={theme} onQuickCreate={setQuickCreateKind} />
           </div>
 
-          {/* Form Panel */}
+          {/* Form Panel — resizable */}
           <ResizablePanel initialWidth={400} minWidth={320} maxWidth={560}>
-            <div style={{ width: 420, flexShrink: 0, borderRight: `1px solid ${theme.border}`, overflowY: "auto", overflowX: "hidden", background: theme.bgCard, scrollBehavior: "smooth" }} className={`mobile-stacked-fullwidth mobile-tab-form ${mobileTab !== 'form' ? 'hidden' : ''}`}>
+            <div style={{ width: '100%', overflowY: "auto", overflowX: "hidden", background: theme.bgCard, scrollBehavior: "smooth" }} className={`mobile-stacked-fullwidth mobile-tab-form ${mobileTab !== 'form' ? 'hidden' : ''}`}>
             {/* Sticky header */}
             <div style={{ padding: "12px 16px", borderBottom: `1px solid ${theme.border}`, background: theme.bgCard, display: "flex", alignItems: "center", gap: 8, position: "sticky", top: 0, zIndex: 10, backdropFilter: "blur(12px)" }}>
               <button onClick={() => setView("dashboard")} title="Back to all resources" style={{ background: "var(--bg-input)", border: "1px solid var(--border-subtle)", borderRadius: 8, color: "var(--text-muted)", cursor: "pointer", fontSize: 13, padding: "6px 10px", fontFamily: "'JetBrains Mono', monospace", transition: "all 150ms ease", display: "flex", alignItems: "center", gap: 4 }}
@@ -726,6 +726,7 @@ export default function App() {
                   onMouseLeave={e => { e.currentTarget.style.borderColor = theme.border; e.currentTarget.style.color = theme.textMuted; }}
                 >💾 Save</button>
               </div>
+            </div>
             </div>
           </ResizablePanel>
 
@@ -1070,9 +1071,11 @@ export default function App() {
                     />
                   );
                 })}
-              </div>
-            </div>
-          )}
+          </div>
+          {/* Mobile Tab Switcher */}
+          <MobileTabSwitcher activeTab={mobileTab} onChange={setMobileTab} theme={theme} />
+        </div>
+      )}
         </div>
       )}
 
