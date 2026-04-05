@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
-import { GENERATORS, RESOURCE_META, CATEGORIES, validateYAML, generateHelmChart, checkDependencies, highlightYAML, ENV_PRESETS, rawYamlToString, lintResource, smartName } from './generators.js';
+import { GENERATORS, RESOURCE_META, CATEGORIES, validateYAML, generateHelmChart, checkDependencies, highlightYAML, ENV_PRESETS, rawYamlToString, lintResource, smartName, getTheme } from './generators.js';
 import { ResizablePanel } from './components/ResizablePanel.jsx';
 import { MobileTabSwitcher } from './components/MobileTabSwitcher.jsx';
 import { TopNav, Sidebar, YAMLPanel, Btn, Input, Textarea, Select, KVList, SecurityBadge, Section, FieldGroup, YAMLImporter, ImportedResourceCard, GenericResourceEditor, MobileStyles, AIChips, QuickCreateModal } from './components.jsx';
