@@ -48,6 +48,10 @@ export const MobileStyles = () => (
         scrollbar-width: none; padding-bottom: 2px;
       }
       .mobile-topnav-scroll::-webkit-scrollbar { display: none; }
+      .mobile-tab-form { display: block !important; }
+      .mobile-tab-yaml { display: none !important; }
+      .mobile-tab-form.hidden { display: none !important; }
+      .mobile-tab-yaml.visible { display: flex !important; flex-direction: column !important; }
     }
     @media (min-width: 769px) {
       .mobile-only { display: none !important; }

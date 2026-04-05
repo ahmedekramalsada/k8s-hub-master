@@ -1,6 +1,6 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate, Link } from 'react-router-dom'
 
 // Design System
 import './styles/design-system.css'
@@ -17,6 +17,17 @@ import { ToastProvider } from './components/ToastContext.jsx'
 import { ThemeProvider } from './contexts/ThemeContext.jsx'
 import { AIProvider } from './ai/AIContext.jsx'
 import AIFloatingWidget from './ai/AIFloatingWidget.jsx'
+
+function NotFound404() {
+  return (
+    <div style={{ minHeight: '80vh', display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 16 }}>
+      <div style={{ fontSize: 64 }}>🔍</div>
+      <h1 style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 'var(--text-3xl)' }}>404</h1>
+      <p style={{ color: 'var(--text-muted)', fontSize: 16 }}>Page not found</p>
+      <Link to="/" className="btn btn-primary">← Back to Home</Link>
+    </div>
+  );
+}
 
 class ErrorBoundary extends React.Component {
     constructor(props) {
@@ -63,7 +74,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
                             <Route path="/learn/*" element={<LearnApp />} />
                             <Route path="/chat" element={<ChatPage />} />
                             <Route path="/docs" element={<DocsPage />} />
-                            <Route path="*" element={<Navigate to="/" replace />} />
+                            <Route path="*" element={<NotFound404 />} />
                         </Routes>
                         <AIFloatingWidget />
                     </BrowserRouter>

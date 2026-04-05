@@ -1,13 +1,14 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import { GENERATORS, RESOURCE_META, CATEGORIES, validateYAML, generateHelmChart, checkDependencies, highlightYAML, ENV_PRESETS, rawYamlToString, lintResource, smartName } from './generators.js';
+import { ResizablePanel } from './components/ResizablePanel.jsx';
+import { MobileTabSwitcher } from './components/MobileTabSwitcher.jsx';
 import { TopNav, Sidebar, YAMLPanel, Btn, Input, Textarea, Select, KVList, SecurityBadge, Section, FieldGroup, YAMLImporter, ImportedResourceCard, GenericResourceEditor, MobileStyles, AIChips, QuickCreateModal } from './components.jsx';
 import { ResourceForm } from './forms.jsx';
 import { useToast } from '../components/ToastContext.jsx';
 import { useAI } from '../ai/AIContext.jsx';
 import { useFormState, useBundle, useSnippets } from './hooks/useFormState.js';
 import { useYamlGeneration } from './hooks/useYamlGeneration.js';
-import { ResizablePanel, MobileTabSwitcher } from './components/ResizablePanel.jsx';
 import Dashboard from './Dashboard.jsx';
 import KeyboardShortcuts from './KeyboardShortcuts.jsx';
 
@@ -391,10 +392,12 @@ function LearnView({ theme }) {
               <div style={{ background: theme.yamlBg, border: `1px solid ${theme.border}`, borderRadius: 8, padding: "14px 18px", display: "flex", alignItems: "center", gap: 10 }}>
                 <code style={{ color: "#4ade80", fontSize: 13, fontFamily: "'JetBrains Mono', monospace", flex: 1 }}>{cmdResult}</code>
                 <button onClick={() => copyCmd(cmdResult)} style={{ background: "#6366f120", border: "1px solid #6366f140", borderRadius: 6, color: "#818cf8", cursor: "pointer", fontSize: 11, padding: "6px 14px", fontFamily: "'JetBrains Mono', monospace", fontWeight: 600 }}>📋 Copy</button>
-              </div>
             </div>
           </div>
-        )}
+
+          <MobileTabSwitcher activeTab={mobileTab} onChange={setMobileTab} theme={theme} />
+        </div>
+      )}
 
         {/* CONCEPTS */}
         {tab === "concepts" && (
@@ -418,24 +421,250 @@ function LearnView({ theme }) {
               ))}
             </div>
           </div>
-            )}
-          </div>
-          {/* Mobile Tab Switcher */}
-          <MobileTabSwitcher activeTab={mobileTab} onChange={setMobileTab} theme={theme} />
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// MAIN APP
+// ═══════════════════════════════════════════════════════════════════
+export default function App() {
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  // Theme — synced with global ThemeContext
+  const [dark, setDark] = useState(() => localStorage.getItem("k8s_theme") !== "light");
+  useEffect(() => {
+    const val = dark ? "dark" : "light";
+    document.documentElement.setAttribute('data-theme', val);
+    localStorage.setItem("k8s_theme", val);
+  }, [dark]);
+
+  // Core state — extracted to custom hooks
+  const { forms, selected, setSelected, form, updateForm, resetForm, deleteForm } = useFormState();
+  const { bundle, setBundle, addToBundle, removeFromBundle, clearBundle, bundleCount } = useBundle(forms);
+  const { snippets, saveSnippet, deleteSnippet } = useSnippets();
+
+  // Memoized YAML generation — only runs when form changes
+  const { yaml, validation, securityScore, lintHints } = useYamlGeneration(forms, selected);
+
+  // UI state
+  const [view, setView] = useState("dashboard");
+  const [search, setSearch] = useState("");
+  const [copied, setCopied] = useState(false);
+  const [showValidation, setShowValidation] = useState(false);
+  const [diffA, setDiffA] = useState("");
+  const [diffB, setDiffB] = useState("");
+  const [snippetName, setSnippetName] = useState("");
+  const [envMode, setEnvMode] = useState(() => localStorage.getItem("k8s_env") || "dev");
+  const [beginnerMode, setBeginnerMode] = useState(() => localStorage.getItem("k8s_beginner") === "true");
+  const [showMobileSidebar, setShowMobileSidebar] = useState(false);
+  const [quickCreateKind, setQuickCreateKind] = useState(null);
+  const [showShortcuts, setShowShortcuts] = useState(false);
+  const [recentResources, setRecentResources] = useState(() => { try { return JSON.parse(localStorage.getItem("k8s_recent") || "[]"); } catch { return []; } });
+  const [mobileTab, setMobileTab] = useState('form');
+
+  // AI context
+  const ai = useAI();
+  const { showToast } = useToast();
+
+  // Open AI panel + pre-fill prompt
+  const openAIPanel = (prompt) => {
+    ai.setPanelOpen(true);
+    if (prompt) ai.setInput(prompt);
+    setTimeout(() => {
+      const ta = document.querySelector(".ai-panel-input");
+      if (ta) { ta.focus(); ta.setSelectionRange(ta.value.length, ta.value.length); }
+    }, 80);
+  };
+
+  // Quick Create handler
+  const handleQuickCreate = (kind, values) => {
+    let formData = { name: values.name, namespace: values.namespace || "default" };
+    if (kind === "Deployment") {
+      formData = { ...formData, image: values.image, replicas: values.replicas || "2", ports: values.port ? [{ port: values.port, name: "http", protocol: "TCP" }] : [] };
+    } else if (kind === "Service") {
+      formData = { ...formData, selector: values.selector, serviceType: values.serviceType || "ClusterIP", ports: [{ port: values.port || "80", targetPort: values.targetPort || "80", name: "http" }] };
+    } else if (kind === "Ingress") {
+      formData = { ...formData, rules: [{ host: values.host, path: values.path || "/", service: values.serviceName || values.name, port: "80" }] };
+    } else if (kind === "ConfigMap") {
+      const data = [];
+      if (values.key1) data.push({ k: values.key1, v: values.val1 || "" });
+      if (values.key2) data.push({ k: values.key2, v: values.val2 || "" });
+      formData = { ...formData, data };
+    } else if (kind === "Secret") {
+      const data = [];
+      if (values.key1) data.push({ k: values.key1, v: values.val1 || "" });
+      formData = { ...formData, secretType: "Opaque", data };
+    } else if (kind === "CronJob") {
+      formData = { ...formData, schedule: values.schedule, image: values.image, command: values.command || "", restartPolicy: "OnFailure" };
+    } else if (kind === "HPA") {
+      formData = { ...formData, target: values.target, minReplicas: values.minReplicas || "2", maxReplicas: values.maxReplicas || "10", cpuTarget: values.cpuTarget || "70" };
+    } else if (kind === "PersistentVolumeClaim") {
+      formData = { ...formData, storage: values.storage || "10Gi", storageClass: values.storageClass || "standard" };
+    }
+    updateForm(kind, formData);
+    setSelected(kind);
+    setView("generator");
+  };
+
+  // Keyboard shortcuts — single unified handler
+  useEffect(() => {
+    const handler = (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === "s") { e.preventDefault(); downloadCurrentYAML(); }
+      if ((e.ctrlKey || e.metaKey) && e.key === "d") { e.preventDefault(); downloadBundle(); }
+      if ((e.ctrlKey || e.metaKey) && e.key === "k") { e.preventDefault(); ai.setPanelOpen(o => !o); }
+      if ((e.ctrlKey || e.metaKey) && e.key === "b") { e.preventDefault(); if (view === "generator") addToBundle(selected); }
+      if ((e.ctrlKey || e.metaKey) && e.key === "?") { e.preventDefault(); setShowShortcuts(s => !s); }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [view, selected, forms, bundle]);
+
+  // Persist recent resources
+  useEffect(() => {
+    if (selected && !recentResources.includes(selected)) {
+      setRecentResources(prev => [selected, ...prev.filter(r => r !== selected)].slice(0, 8));
+    }
+  }, [selected]);
+
+  // Apply env preset
+  const applyEnvPreset = (env) => {
+    setEnvMode(env);
+    const overrides = ENV_PRESETS[env]?.overrides || {};
+    updateForm(selected, { ...(forms[selected] || {}), ...overrides });
+  };
+
+  const copy = (text) => {
+    navigator.clipboard.writeText(text || yaml).then(() => {
+      showToast('YAML copied to clipboard!', 'success');
+    }).catch(() => {
+      showToast('Failed to copy. Please try again.', 'error');
+    });
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  const downloadCurrentYAML = () => downloadFile(yaml, `${selected.toLowerCase().replace(/[\s&]/g, "-")}.yaml`);
+
+  const downloadBundle = () => {
+    const entries = Object.entries(bundle);
+    if (!entries.length) return;
+    const all = entries.map(([type, f]) => {
+      try {
+        if (f._isImported) {
+          const yamlStr = f._rawYaml || rawYamlToString(f._rawDoc);
+          return `# ===== ${f._kind || type} =====\n${yamlStr}`;
+        }
+        return `# ===== ${type} =====\n${GENERATORS[type]?.(f) || ""}`;
+      } catch { return `# Error generating ${type}`; }
+    }).join("\n\n---\n\n");
+    downloadFile(all, "k8s-bundle.yaml");
+  };
+
+  const applyTemplate = (tplName) => {
+    const tpl = APP_TEMPLATES[tplName];
+    if (!tpl) return;
+    setBundle(tpl.resources);
+    Object.entries(tpl.resources).forEach(([type, f]) => updateForm(type, f));
+    setView("bundle");
+  };
+
+  const handleImport = (docs) => {
+    if (!docs || !docs.length) return;
+    if (Object.keys(bundle).length > 0) {
+      if (!window.confirm("Your current bundle is not empty. Importing will overwrite existing resources of the same type. Continue?")) return;
+    }
+    docs.forEach(doc => {
+      const typeKey = doc.kind + "_" + Math.floor(Math.random() * 10000);
+      const enriched = {
+        ...doc.formData,
+        _isImported: true,
+        _rawDoc: doc.rawDoc,
+        _rawYaml: doc.rawYaml,
+        _kind: doc.kind,
+        name: doc.rawDoc?.metadata?.name || doc.formData?.name || "",
+      };
+      updateForm(typeKey, enriched);
+      setBundle(b => ({ ...b, [typeKey]: enriched }));
+    });
+    setView("bundle");
+    showToast(`Imported ${docs.length} resource(s)!`, 'success');
+  };
+
+  const handleDashboardSelect = (type) => {
+    setSelected(type);
+    setView("generator");
+  };
+
+  const handleCreateLinked = (kind) => {
+    setQuickCreateKind(kind);
+  };
+
+  const loadSnippet = (s) => {
+    updateForm(s.type, s.form);
+    setSelected(s.type);
+    setView("generator");
+    showToast(`Loaded snippet "${s.name}"`, 'success');
+  };
+
+  const depWarnings = checkDependencies(bundle);
+
+  const theme = getTheme(dark);
+  const meta = RESOURCE_META[selected];
+
+  // View routing
+  const setViewAndNav = (v) => {
+    setView(v);
+  };
+
+  return (
+    <div style={{ minHeight: "100vh", background: theme.bg, color: theme.text, display: "flex", flexDirection: "column", fontFamily: "'JetBrains Mono', monospace" }}>
+      <MobileStyles />
+
+      {/* Mobile Sidebar Overlay */}
+      <div className={`mobile-sidebar-drawer ${showMobileSidebar ? "" : "mobile-sidebar-hidden"}`}>
+        <Sidebar selected={selected} onSelect={s => { setSelected(s); setView("generator"); setShowMobileSidebar(false); }} search={search} onSearch={setSearch} theme={theme} onQuickCreate={kind => { setQuickCreateKind(kind); setShowMobileSidebar(false); }} />
+        <button className="mobile-only touch-btn" onClick={() => setShowMobileSidebar(false)} style={{ position: "absolute", top: 12, right: 12, background: theme.bgInput, border: `1px solid ${theme.border}`, color: theme.text, borderRadius: 6, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, cursor: "pointer" }}>×</button>
+      </div>
+      {showMobileSidebar && <div className="mobile-only mobile-overlay" onClick={() => setShowMobileSidebar(false)}></div>}
+
+      <TopNav view={view} onView={setViewAndNav} darkMode={dark} onToggleTheme={() => setDark(!dark)} theme={theme} onToggleMobileSidebar={() => setShowMobileSidebar(true)} />
+
+      {/* ── ENV TOOLBAR ─────────────────────────────────────── */}
+      {view === "generator" && (
+        <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "5px 14px", borderBottom: `1px solid ${theme.border}`, background: theme.bgCard, flexWrap: "wrap" }}>
+          <span style={{ color: theme.textDim, fontSize: 10, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", marginRight: 2 }}>ENV</span>
+          {Object.entries(ENV_PRESETS).map(([k, p]) => (
+            <button key={k} onClick={() => applyEnvPreset(k)}
+              style={{ background: envMode === k ? `${p.color}20` : "transparent", border: `1px solid ${envMode === k ? p.color + "60" : theme.border}`, borderRadius: 6, color: envMode === k ? p.color : theme.textMuted, cursor: "pointer", fontSize: 10.5, padding: "3px 10px", fontFamily: "'JetBrains Mono', monospace", fontWeight: envMode === k ? 700 : 400, transition: "all 150ms ease" }}>
+              {p.icon} {p.label}
+            </button>
+          ))}
+          <div style={{ flex: 1 }} />
+          <button onClick={() => setBeginnerMode(b => !b)}
+            style={{ background: beginnerMode ? "#22d3ee20" : "transparent", border: `1px solid ${beginnerMode ? "#22d3ee50" : theme.border}`, borderRadius: 6, color: beginnerMode ? "#22d3ee" : theme.textMuted, cursor: "pointer", fontSize: 10.5, padding: "3px 10px", fontFamily: "'JetBrains Mono', monospace", transition: "all 150ms ease" }}>
+            {beginnerMode ? "🎓 Beginner ON" : "🎓 Beginner"}
+          </button>
+          <button onClick={() => setShowShortcuts(s => !s)}
+            style={{ background: "transparent", border: `1px solid ${theme.border}`, borderRadius: 6, color: theme.textMuted, cursor: "pointer", fontSize: 10.5, padding: "3px 10px", fontFamily: "'JetBrains Mono', monospace", transition: "all 150ms ease" }}>
+            ⌨️ Shortcuts
+          </button>
         </div>
       )}
 
       {view === "generator" && (
         <div className="mobile-stacked" style={{ display: "flex", flex: 1, overflow: "hidden", height: "calc(100vh - 96px)" }}>
-          {/* Sidebar — desktop only */}
+          {/* Sidebar */}
           <div className="desktop-only" style={{ display: "flex", height: "100%" }}>
             <Sidebar selected={selected} onSelect={setSelected} search={search} onSearch={setSearch} theme={theme} onQuickCreate={setQuickCreateKind} />
           </div>
 
-          {/* Form Panel — resizable on desktop, toggle on mobile */}
-          {(mobileTab === 'form' || mobileTab === 'yaml') && (
-            <ResizablePanel initialWidth={400} minWidth={320} maxWidth={560}>
-              <div style={{ width: '100%', borderRight: `1px solid ${theme.border}`, overflowY: "auto", overflowX: "hidden", background: theme.bgCard, scrollBehavior: "smooth" }} className="mobile-stacked-fullwidth">
+          {/* Form Panel */}
+          <ResizablePanel initialWidth={400} minWidth={320} maxWidth={560}>
+            <div style={{ width: 420, flexShrink: 0, borderRight: `1px solid ${theme.border}`, overflowY: "auto", overflowX: "hidden", background: theme.bgCard, scrollBehavior: "smooth" }} className={`mobile-stacked-fullwidth mobile-tab-form ${mobileTab !== 'form' ? 'hidden' : ''}`}>
             {/* Sticky header */}
             <div style={{ padding: "12px 16px", borderBottom: `1px solid ${theme.border}`, background: theme.bgCard, display: "flex", alignItems: "center", gap: 8, position: "sticky", top: 0, zIndex: 10, backdropFilter: "blur(12px)" }}>
               <button onClick={() => setView("dashboard")} title="Back to all resources" style={{ background: "var(--bg-input)", border: "1px solid var(--border-subtle)", borderRadius: 8, color: "var(--text-muted)", cursor: "pointer", fontSize: 13, padding: "6px 10px", fontFamily: "'JetBrains Mono', monospace", transition: "all 150ms ease", display: "flex", alignItems: "center", gap: 4 }}
@@ -497,13 +726,11 @@ function LearnView({ theme }) {
                   onMouseLeave={e => { e.currentTarget.style.borderColor = theme.border; e.currentTarget.style.color = theme.textMuted; }}
                 >💾 Save</button>
               </div>
-              </div>
             </div>
-            </ResizablePanel>
-          )}
+          </ResizablePanel>
 
-          {/* YAML Output — toggle on mobile */}
-          <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+          {/* YAML Output */}
+          <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }} className={`mobile-stacked-fullwidth mobile-tab-yaml ${mobileTab === 'yaml' ? 'visible' : ''}`}>
             {/* Validation Bar */}
             {showValidation && (
               <div style={{ padding: "8px 16px", borderBottom: `1px solid ${theme.border}`, background: theme.bgCard, display: "flex", gap: 6, flexWrap: "wrap", maxHeight: 120, overflowY: "auto" }}>
