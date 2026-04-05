@@ -3,7 +3,7 @@
 // All reusable UI components
 // ═══════════════════════════════════════════════════════════════════
 
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useCallback } from "react";
 import yaml from "js-yaml";
 import { RESOURCE_META, CATEGORIES, detectImage, smartName, lintResource, calcSecurityScore, detectKindFromParsed, yamlToFormState } from "./generators.js";
 import { ResourceForm } from "./forms.jsx";
@@ -715,6 +715,17 @@ export function TopNav({ view, onView, darkMode, onToggleTheme, theme, onToggleM
 // ───────────────────────────────────────────────────────────────────
 export function YAMLPanel({ yaml, resourceType, theme, onCopy, onDownload, copied, extraActions }) {
   const { showToast } = useToast();
+  const [wordWrap, setWordWrap] = useState(false);
+  const scrollRef = useRef(null);
+  const lineNumbersRef = useRef(null);
+
+  // Sync scroll between line numbers and YAML content
+  const handleScroll = useCallback((e) => {
+    if (lineNumbersRef.current) {
+      lineNumbersRef.current.scrollTop = e.target.scrollTop;
+    }
+  }, []);
+
   const highlighted = yaml
     .split("\n")
     .map(line => {
@@ -742,7 +753,15 @@ export function YAMLPanel({ yaml, resourceType, theme, onCopy, onDownload, copie
         <span style={{ color: theme.textDim, fontSize: 11 }}>📄 {(resourceType || "resource").toLowerCase().replace(/[\s&]/g, "-")}.yaml</span>
         <span style={{ color: theme.textDim, fontSize: 10 }}>•</span>
         <span style={{ color: theme.textDim, fontSize: 10 }}>{yaml.split("\n").length} lines</span>
-        <div style={{ marginLeft: "auto", display: "flex", gap: 6 }}>
+        <div style={{ marginLeft: "auto", display: "flex", gap: 6, alignItems: "center" }}>
+          {/* Word wrap toggle */}
+          <button onClick={() => setWordWrap(w => !w)} style={{
+            background: wordWrap ? 'rgba(99,102,241,0.15)' : 'transparent',
+            border: `1px solid ${wordWrap ? 'rgba(99,102,241,0.3)' : theme.border}`,
+            borderRadius: 6, color: wordWrap ? '#818cf8' : theme.textMuted,
+            cursor: 'pointer', fontSize: 10, padding: '4px 8px',
+            fontFamily: "'JetBrains Mono', monospace", transition: 'all 150ms ease',
+          }} title="Toggle word wrap">↩️ Wrap</button>
           {extraActions}
           <Btn onClick={onCopy} theme={theme} variant={copied ? "success" : "ghost"} style={{ fontSize: 11, padding: "6px 12px" }}>
             {copied ? "✅ Copied!" : "📋 Copy"}
@@ -753,23 +772,36 @@ export function YAMLPanel({ yaml, resourceType, theme, onCopy, onDownload, copie
         </div>
       </div>
 
-      {/* YAML with line numbers */}
-      <div style={{ flex: 1, overflow: "auto", display: "flex", padding: "16px 16px 16px 0" }}>
-        {/* Line numbers gutter */}
-        <div style={{
-          width: 40, flexShrink: 0, background: theme.yamlBg,
+      {/* YAML with synced line numbers */}
+      <div style={{ flex: 1, overflow: "hidden", display: "flex" }}>
+        {/* Line numbers gutter — synced scroll */}
+        <div ref={lineNumbersRef} style={{
+          width: 48, flexShrink: 0, background: theme.yamlBg,
           borderRight: '1px solid var(--border-subtle)',
-          padding: '20px 0', userSelect: 'none', textAlign: 'right',
+          overflow: 'hidden', userSelect: 'none', textAlign: 'right',
           fontFamily: "'JetBrains Mono', monospace", fontSize: 11,
           color: theme.textDim, lineHeight: 1.8,
         }}>
-          {yaml.split("\n").map((_, i) => (
-            <div key={i} style={{ height: '1.8em', paddingRight: 10 }}>{i + 1}</div>
-          ))}
+          <div style={{ padding: '16px 8px 16px 0' }}>
+            {yaml.split("\n").map((_, i) => (
+              <div key={i} style={{ height: '1.8em' }}>{i + 1}</div>
+            ))}
+          </div>
         </div>
-        {/* YAML content */}
+        {/* YAML content — scrollable */}
         <pre
-          style={{ flex: 1, background: theme.yamlBg, border: `1px solid ${theme.border}`, borderRadius: '0 10px 10px 0', fontFamily: "'JetBrains Mono', monospace", fontSize: 12.5, lineHeight: 1.8, padding: "20px 24px", minHeight: "100%", color: theme.yamlText, overflow: "auto", margin: 0 }}
+          ref={scrollRef}
+          onScroll={handleScroll}
+          style={{
+            flex: 1, background: theme.yamlBg,
+            border: `1px solid ${theme.border}`, borderLeft: 'none',
+            borderRadius: '0 10px 10px 0',
+            fontFamily: "'JetBrains Mono', monospace", fontSize: 12.5,
+            lineHeight: 1.8, padding: "16px 20px",
+            color: theme.yamlText, overflow: "auto", margin: 0,
+            whiteSpace: wordWrap ? 'pre-wrap' : 'pre',
+            wordBreak: wordWrap ? 'break-all' : 'normal',
+          }}
           dangerouslySetInnerHTML={{ __html: highlighted }}
         />
       </div>

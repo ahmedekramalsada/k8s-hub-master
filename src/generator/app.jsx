@@ -7,6 +7,7 @@ import { useToast } from '../components/ToastContext.jsx';
 import { useAI } from '../ai/AIContext.jsx';
 import { useFormState, useBundle, useSnippets } from './hooks/useFormState.js';
 import { useYamlGeneration } from './hooks/useYamlGeneration.js';
+import { ResizablePanel, MobileTabSwitcher } from './components/ResizablePanel.jsx';
 import Dashboard from './Dashboard.jsx';
 import KeyboardShortcuts from './KeyboardShortcuts.jsx';
 
@@ -460,6 +461,7 @@ export default function App() {
   const [quickCreateKind, setQuickCreateKind] = useState(null);
   const [showShortcuts, setShowShortcuts] = useState(false);
   const [recentResources, setRecentResources] = useState(() => { try { return JSON.parse(localStorage.getItem("k8s_recent") || "[]"); } catch { return []; } });
+  const [mobileTab, setMobileTab] = useState('form'); // form | yaml | bundle
 
   // AI context
   const ai = useAI();
@@ -652,13 +654,15 @@ export default function App() {
 
       {view === "generator" && (
         <div className="mobile-stacked" style={{ display: "flex", flex: 1, overflow: "hidden", height: "calc(100vh - 96px)" }}>
-          {/* Sidebar */}
+          {/* Sidebar — desktop only */}
           <div className="desktop-only" style={{ display: "flex", height: "100%" }}>
             <Sidebar selected={selected} onSelect={setSelected} search={search} onSearch={setSearch} theme={theme} onQuickCreate={setQuickCreateKind} />
           </div>
 
-          {/* Form Panel */}
-          <div style={{ width: 420, flexShrink: 0, borderRight: `1px solid ${theme.border}`, overflowY: "auto", overflowX: "hidden", background: theme.bgCard, scrollBehavior: "smooth" }} className="mobile-stacked-fullwidth">
+          {/* Form Panel — resizable on desktop, toggle on mobile */}
+          {(mobileTab === 'form' || mobileTab === 'yaml') && (
+            <ResizablePanel initialWidth={400} minWidth={320} maxWidth={560}>
+              <div style={{ width: '100%', borderRight: `1px solid ${theme.border}`, overflowY: "auto", overflowX: "hidden", background: theme.bgCard, scrollBehavior: "smooth" }} className="mobile-stacked-fullwidth">
             {/* Sticky header */}
             <div style={{ padding: "12px 16px", borderBottom: `1px solid ${theme.border}`, background: theme.bgCard, display: "flex", alignItems: "center", gap: 8, position: "sticky", top: 0, zIndex: 10, backdropFilter: "blur(12px)" }}>
               <button onClick={() => setView("dashboard")} title="Back to all resources" style={{ background: "var(--bg-input)", border: "1px solid var(--border-subtle)", borderRadius: 8, color: "var(--text-muted)", cursor: "pointer", fontSize: 13, padding: "6px 10px", fontFamily: "'JetBrains Mono', monospace", transition: "all 150ms ease", display: "flex", alignItems: "center", gap: 4 }}
@@ -720,11 +724,13 @@ export default function App() {
                   onMouseLeave={e => { e.currentTarget.style.borderColor = theme.border; e.currentTarget.style.color = theme.textMuted; }}
                 >💾 Save</button>
               </div>
+              </div>
             </div>
-          </div>
+            </ResizablePanel>
+          )}
 
-          {/* YAML Output */}
-          <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+          {/* YAML Output — toggle on mobile */}
+          {(mobileTab === 'yaml' || mobileTab === 'form') && (
             {/* Validation Bar */}
             {showValidation && (
               <div style={{ padding: "8px 16px", borderBottom: `1px solid ${theme.border}`, background: theme.bgCard, display: "flex", gap: 6, flexWrap: "wrap", maxHeight: 120, overflowY: "auto" }}>
