@@ -1,20 +1,14 @@
-// ═══════════════════════════════════════════════════════════════════
-// K8S ULTIMATE GENERATOR — Part 4: app.jsx
-// Main App — all views wired together
-// Usage: This is the entry point. Import all other parts.
-// ═══════════════════════════════════════════════════════════════════
-
-import React, { useState, useEffect, useRef, useCallback } from "react";
-import { GENERATORS, RESOURCE_META, CATEGORIES, validateYAML, generateHelmChart, checkDependencies, highlightYAML, ENV_PRESETS, productionChecklist, getTheme, rawYamlToString, lintResource, smartName } from "./generators.js";
-import { TopNav, Sidebar, YAMLPanel, Btn, Input, Textarea, Select, KVList, SecurityBadge, Section, FieldGroup, YAMLImporter, ImportedResourceCard, GenericResourceEditor, MobileStyles, AIChips, QuickCreateModal } from "./components.jsx";
-import { ResourceForm } from "./forms.jsx";
-import { useToast } from "../components/ToastContext.jsx";
-import { useAI } from "../ai/AIContext.jsx";
-import { SYSTEM_PROMPTS, QUICK_PROMPTS } from "../ai/prompts.js";
-import Dashboard from "./Dashboard.jsx";
-import LineNumbers from "./LineNumbers.jsx";
-import KeyboardShortcuts from "./KeyboardShortcuts.jsx";
-
+import React, { useState, useEffect, useCallback } from 'react';
+import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
+import { GENERATORS, RESOURCE_META, CATEGORIES, validateYAML, generateHelmChart, checkDependencies, highlightYAML, ENV_PRESETS, rawYamlToString, lintResource, smartName } from './generators.js';
+import { TopNav, Sidebar, YAMLPanel, Btn, Input, Textarea, Select, KVList, SecurityBadge, Section, FieldGroup, YAMLImporter, ImportedResourceCard, GenericResourceEditor, MobileStyles, AIChips, QuickCreateModal } from './components.jsx';
+import { ResourceForm } from './forms.jsx';
+import { useToast } from '../components/ToastContext.jsx';
+import { useAI } from '../ai/AIContext.jsx';
+import { useFormState, useBundle, useSnippets } from './hooks/useFormState.js';
+import { useYamlGeneration } from './hooks/useYamlGeneration.js';
+import Dashboard from './Dashboard.jsx';
+import KeyboardShortcuts from './KeyboardShortcuts.jsx';
 
 // ═══════════════════════════════════════════════════════════════════
 // TEMPLATES DATA
@@ -115,11 +109,6 @@ function WizardView({ onLoadTemplate, onView, theme }) {
     secure: { label: "🔐 Secure Microservice", sub: "Full stack with RBAC + NetworkPolicy", template: "Secure Microservice" },
     gitops: { label: "🔄 GitOps Stack", sub: "Namespace + ArgoCD + ClusterIssuer", template: "GitOps Stack" },
   };
-
-  const steps = [
-    { title: "What do you want to deploy?", key: "what" },
-    { title: "Name your app & confirm", key: "confirm" },
-  ];
 
   const card = (key, preset) => (
     <div key={key} onClick={() => { setWizForm(f => ({ ...f, what: key })); }}
@@ -398,10 +387,9 @@ function LearnView({ theme }) {
                 <input value={cmdLabel} onChange={e => setCmdLabel(e.target.value)} placeholder="my-app"
                   style={{ width: "100%", background: theme.bgInput, border: `1px solid ${theme.border}`, borderRadius: 7, color: theme.text, fontSize: 12, fontFamily: "'JetBrains Mono', monospace", padding: "8px 10px", outline: "none" }} />
               </div>
-              <div style={{ background: theme.yamlBg, border: `1px solid ${theme.border}`, borderRadius: 8, padding: "14px 16px", display: "flex", alignItems: "center", gap: 12 }}>
-                <code style={{ flex: 1, color: "#4ade80", fontSize: 13, fontFamily: "'JetBrains Mono', monospace", wordBreak: "break-all" }}>{cmdResult}</code>
-                <button onClick={() => navigator.clipboard.writeText(cmdResult)}
-                  style={{ background: "#6366f120", border: "1px solid #6366f140", borderRadius: 6, color: "#818cf8", cursor: "pointer", fontSize: 11, padding: "6px 12px", fontFamily: "'JetBrains Mono', monospace", flexShrink: 0 }}>📋 Copy</button>
+              <div style={{ background: theme.yamlBg, border: `1px solid ${theme.border}`, borderRadius: 8, padding: "14px 18px", display: "flex", alignItems: "center", gap: 10 }}>
+                <code style={{ color: "#4ade80", fontSize: 13, fontFamily: "'JetBrains Mono', monospace", flex: 1 }}>{cmdResult}</code>
+                <button onClick={() => copyCmd(cmdResult)} style={{ background: "#6366f120", border: "1px solid #6366f140", borderRadius: 6, color: "#818cf8", cursor: "pointer", fontSize: 11, padding: "6px 14px", fontFamily: "'JetBrains Mono', monospace", fontWeight: 600 }}>📋 Copy</button>
               </div>
             </div>
           </div>
@@ -410,28 +398,26 @@ function LearnView({ theme }) {
         {/* CONCEPTS */}
         {tab === "concepts" && (
           <div style={{ maxWidth: 900, margin: "0 auto" }}>
-            <div style={{ fontFamily: "'Syne', sans-serif", fontWeight: 800, color: "#818cf8", fontSize: 20, marginBottom: 20 }}>💡 K8s Concepts</div>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(320px,1fr))", gap: 14 }}>
+            <div style={{ fontFamily: "'Syne', sans-serif", fontWeight: 800, color: "#818cf8", fontSize: 20, marginBottom: 20 }}>💡 Kubernetes Concepts</div>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(280px,1fr))", gap: 12 }}>
               {CONCEPTS.map(c => (
-                <div key={c.name} style={{ background: theme.bgCard, border: `1px solid ${theme.border}`, borderRadius: 10, padding: 18, transition: "border-color 0.2s" }}
+                <div key={c.name} style={{ background: theme.bgCard, border: `1px solid ${c.color}30`, borderRadius: 10, padding: "16px 18px", transition: "border-color 0.2s" }}
                   onMouseEnter={e => e.currentTarget.style.borderColor = c.color + "60"}
-                  onMouseLeave={e => e.currentTarget.style.borderColor = theme.border}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
-                    <span style={{ fontSize: 20 }}>{c.icon}</span>
-                    <span style={{ color: c.color, fontFamily: "'Syne', sans-serif", fontWeight: 800, fontSize: 14 }}>{c.name}</span>
+                  onMouseLeave={e => e.currentTarget.style.borderColor = c.color + "30"}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
+                    <span style={{ fontSize: 24 }}>{c.icon}</span>
+                    <span style={{ color: c.color, fontWeight: 700, fontSize: 14 }}>{c.name}</span>
                   </div>
-                  <div style={{ color: theme.text, fontSize: 11.5, lineHeight: 1.7, marginBottom: 12 }}>{c.desc}</div>
-                  <div style={{ background: theme.yamlBg, border: `1px solid ${theme.border}`, borderRadius: 6, padding: "8px 12px", display: "flex", alignItems: "center", gap: 8 }}>
-                    <code style={{ flex: 1, color: "#4ade80", fontSize: 10.5, fontFamily: "'JetBrains Mono', monospace" }}>{c.cmd}</code>
-                    <button onClick={() => navigator.clipboard.writeText(c.cmd)}
-                      style={{ background: "transparent", border: "none", color: theme.textDim, cursor: "pointer", fontSize: 11, padding: 2 }}>📋</button>
+                  <div style={{ color: theme.textMuted, fontSize: 11.5, lineHeight: 1.6, marginBottom: 10 }}>{c.desc}</div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                    <code style={{ color: "#4ade80", fontSize: 10.5, fontFamily: "'JetBrains Mono', monospace", flex: 1, wordBreak: "break-all" }}>{c.cmd}</code>
+                    <button onClick={() => copyCmd(c.cmd)} style={{ background: "transparent", border: `1px solid ${theme.border}`, borderRadius: 4, color: theme.textMuted, cursor: "pointer", fontSize: 9, padding: "2px 6px" }}>📋</button>
                   </div>
                 </div>
               ))}
             </div>
           </div>
         )}
-
       </div>
     </div>
   );
@@ -441,38 +427,43 @@ function LearnView({ theme }) {
 // MAIN APP
 // ═══════════════════════════════════════════════════════════════════
 export default function App() {
+  const navigate = useNavigate();
+  const location = useLocation();
 
+  // Theme — synced with global ThemeContext
   const [dark, setDark] = useState(() => localStorage.getItem("k8s_theme") !== "light");
-
   useEffect(() => {
     const val = dark ? "dark" : "light";
     document.documentElement.setAttribute('data-theme', val);
     localStorage.setItem("k8s_theme", val);
   }, [dark]);
 
+  // Core state — extracted to custom hooks
+  const { forms, selected, setSelected, form, updateForm, resetForm, deleteForm } = useFormState();
+  const { bundle, setBundle, addToBundle, removeFromBundle, clearBundle, bundleCount } = useBundle(forms);
+  const { snippets, saveSnippet, deleteSnippet } = useSnippets();
+
+  // Memoized YAML generation — only runs when form changes
+  const { yaml, validation, securityScore, lintHints } = useYamlGeneration(forms, selected);
+
+  // UI state
   const [view, setView] = useState("dashboard");
-  const [selected, setSelected] = useState("Deployment");
-  const [recentResources, setRecentResources] = useState(() => { try { return JSON.parse(localStorage.getItem("k8s_recent") || "[]"); } catch { return []; } });
   const [search, setSearch] = useState("");
-  const [forms, setForms] = useState(() => { try { return JSON.parse(localStorage.getItem("k8s_forms") || "{}"); } catch { return {}; } });
-  const [bundle, setBundle] = useState(() => { try { return JSON.parse(localStorage.getItem("k8s_bundle") || "{}"); } catch { return {}; } });
-  const [snippets, setSnippets] = useState(() => { try { return JSON.parse(localStorage.getItem("k8s_snippets") || "[]"); } catch { return []; } });
   const [copied, setCopied] = useState(false);
   const [showValidation, setShowValidation] = useState(false);
   const [diffA, setDiffA] = useState("");
   const [diffB, setDiffB] = useState("");
-  const [importText, setImportText] = useState("");
   const [snippetName, setSnippetName] = useState("");
   const [envMode, setEnvMode] = useState(() => localStorage.getItem("k8s_env") || "dev");
   const [beginnerMode, setBeginnerMode] = useState(() => localStorage.getItem("k8s_beginner") === "true");
   const [showMobileSidebar, setShowMobileSidebar] = useState(false);
   const [quickCreateKind, setQuickCreateKind] = useState(null);
   const [showShortcuts, setShowShortcuts] = useState(false);
+  const [recentResources, setRecentResources] = useState(() => { try { return JSON.parse(localStorage.getItem("k8s_recent") || "[]"); } catch { return []; } });
 
-  // Use the new unified AI context
+  // AI context
   const ai = useAI();
-
-  const theme = getTheme(dark);
+  const { showToast } = useToast();
 
   // Open AI panel + pre-fill prompt
   const openAIPanel = (prompt) => {
@@ -484,7 +475,7 @@ export default function App() {
     }, 80);
   };
 
-  // Quick Create: map modal field values → form state for each kind
+  // Quick Create handler
   const handleQuickCreate = (kind, values) => {
     let formData = { name: values.name, namespace: values.namespace || "default" };
     if (kind === "Deployment") {
@@ -509,60 +500,37 @@ export default function App() {
     } else if (kind === "PersistentVolumeClaim") {
       formData = { ...formData, storage: values.storage || "10Gi", storageClass: values.storageClass || "standard" };
     }
-    setForms(f => ({ ...f, [kind]: formData }));
+    updateForm(kind, formData);
     setSelected(kind);
     setView("generator");
   };
 
-  // Keyboard shortcuts
-  useEffect(() => {
-    const handler = (e) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === "k") { e.preventDefault(); setAiPanelOpen(o => !o); }
-      if ((e.metaKey || e.ctrlKey) && e.key === "b") { e.preventDefault(); if (view === "generator") addToBundle(); }
-    };
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
-  }, [view, selected]);
-
-  // Persist to localStorage
-  useEffect(() => { localStorage.setItem("k8s_forms", JSON.stringify(forms)); }, [forms]);
-  useEffect(() => { localStorage.setItem("k8s_bundle", JSON.stringify(bundle)); }, [bundle]);
-  useEffect(() => { localStorage.setItem("k8s_snippets", JSON.stringify(snippets)); }, [snippets]);
-  useEffect(() => { localStorage.setItem("k8s_theme", dark ? "dark" : "light"); }, [dark]);
-  useEffect(() => { localStorage.setItem("k8s_env", envMode); }, [envMode]);
-  useEffect(() => { localStorage.setItem("k8s_beginner", beginnerMode); }, [beginnerMode]);
-
-  // Apply env preset overrides to current form when env changes
-  const applyEnvPreset = (env) => {
-    setEnvMode(env);
-    const overrides = ENV_PRESETS[env]?.overrides || {};
-    setForms(f => ({ ...f, [selected]: { ...(f[selected] || {}), ...overrides } }));
-  };
-
-  // Keyboard shortcuts
+  // Keyboard shortcuts — single unified handler
   useEffect(() => {
     const handler = (e) => {
       if ((e.ctrlKey || e.metaKey) && e.key === "s") { e.preventDefault(); downloadCurrentYAML(); }
       if ((e.ctrlKey || e.metaKey) && e.key === "d") { e.preventDefault(); downloadBundle(); }
       if ((e.ctrlKey || e.metaKey) && e.key === "k") { e.preventDefault(); ai.setPanelOpen(o => !o); }
-      if ((e.ctrlKey || e.metaKey) && e.key === "b") { e.preventDefault(); if (view === "generator") addToBundle(); }
+      if ((e.ctrlKey || e.metaKey) && e.key === "b") { e.preventDefault(); if (view === "generator") addToBundle(selected); }
       if ((e.ctrlKey || e.metaKey) && e.key === "?") { e.preventDefault(); setShowShortcuts(s => !s); }
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [forms, selected, bundle, view]);
+  }, [view, selected, forms, bundle]);
 
-  const form = forms[selected] || {};
-  const generator = GENERATORS[selected];
-  const yaml = generator ? (() => { try { return generator(form); } catch (e) { return `# Error generating YAML: ${e.message}`; } })() : "# Select a resource type";
-  const validation = validateYAML(yaml);
-  const depWarnings = checkDependencies(bundle);
+  // Persist recent resources
+  useEffect(() => {
+    if (selected && !recentResources.includes(selected)) {
+      setRecentResources(prev => [selected, ...prev.filter(r => r !== selected)].slice(0, 8));
+    }
+  }, [selected]);
 
-  const { showToast } = useToast();
-
-  const updateForm = useCallback((type, newForm) => {
-    setForms(f => ({ ...f, [type]: newForm }));
-  }, []);
+  // Apply env preset
+  const applyEnvPreset = (env) => {
+    setEnvMode(env);
+    const overrides = ENV_PRESETS[env]?.overrides || {};
+    updateForm(selected, { ...(forms[selected] || {}), ...overrides });
+  };
 
   const copy = (text) => {
     navigator.clipboard.writeText(text || yaml).then(() => {
@@ -582,8 +550,6 @@ export default function App() {
     const all = entries.map(([type, f]) => {
       try {
         if (f._isImported) {
-          // Prefer _rawYaml: preserves original quotes, comments, exact formatting
-          // Fall back to rawYamlToString only if rawYaml is missing (e.g. visual-editor-only edit)
           const yamlStr = f._rawYaml || rawYamlToString(f._rawDoc);
           return `# ===== ${f._kind || type} =====\n${yamlStr}`;
         }
@@ -593,96 +559,61 @@ export default function App() {
     downloadFile(all, "k8s-bundle.yaml");
   };
 
-  const addToBundle = () => {
-    setBundle(b => ({ ...b, [selected]: form }));
-  };
-
   const applyTemplate = (tplName) => {
     const tpl = APP_TEMPLATES[tplName];
     if (!tpl) return;
     setBundle(tpl.resources);
-    const newForms = { ...forms };
-    Object.entries(tpl.resources).forEach(([type, f]) => { newForms[type] = f; });
-    setForms(newForms);
+    Object.entries(tpl.resources).forEach(([type, f]) => updateForm(type, f));
     setView("bundle");
   };
 
   const handleImport = (docs) => {
     if (!docs || !docs.length) return;
-
     if (Object.keys(bundle).length > 0) {
-      if (!window.confirm("Your current bundle is not empty. Importing will overwrite existing resources of the same type. Continue?")) {
-        return;
-      }
+      if (!window.confirm("Your current bundle is not empty. Importing will overwrite existing resources of the same type. Continue?")) return;
     }
-
-    const nextForms = { ...forms };
-    const nextBundle = { ...bundle };
-
     docs.forEach(doc => {
-      // Always use a unique key (kind + random) to avoid collisions on multi-import
       const typeKey = doc.kind + "_" + Math.floor(Math.random() * 10000);
-      // Store raw parsed object + YAML string so nothing is lost on download
       const enriched = {
         ...doc.formData,
         _isImported: true,
-        _rawDoc: doc.rawDoc,       // original parsed JS object
-        _rawYaml: doc.rawYaml,    // original YAML string for display
+        _rawDoc: doc.rawDoc,
+        _rawYaml: doc.rawYaml,
         _kind: doc.kind,
         name: doc.rawDoc?.metadata?.name || doc.formData?.name || "",
       };
-      nextForms[typeKey] = enriched;
-      nextBundle[typeKey] = enriched;
+      updateForm(typeKey, enriched);
+      setBundle(b => ({ ...b, [typeKey]: enriched }));
     });
-
-    setForms(nextForms);
-    setBundle(nextBundle);
     setView("bundle");
-
-    alert(`Successfully imported ${docs.length} resource(s) into your bundle!`);
+    showToast(`Imported ${docs.length} resource(s)!`, 'success');
   };
 
-  const saveSnippet = () => {
-    if (!snippetName.trim()) return;
-    const newSnippet = { id: Date.now(), name: snippetName, type: selected, yaml, form: { ...form } };
-    setSnippets(s => [...s, newSnippet]);
-    setSnippetName("");
-  };
-
-  const loadSnippet = (snippet) => {
-    setForms(f => ({ ...f, [snippet.type]: snippet.form }));
-    setSelected(snippet.type);
-    setView("generator");
-  };
-
-  const deleteSnippet = (id) => setSnippets(s => s.filter(x => x.id !== id));
-
-  const handleCreateLinked = (type) => {
+  const handleDashboardSelect = (type) => {
     setSelected(type);
-    const n = smartName(form.name || "");
-    const defaults = { Service: { name: n.service }, Secret: { name: n.secret }, ConfigMap: { name: n.configmap }, ServiceAccount: { name: n.sa }, ClusterIssuer: { name: "letsencrypt-prod" } };
-    if (defaults[type]) setForms(f => ({ ...f, [type]: { namespace: form.namespace || "default", ...defaults[type] } }));
-  };
-
-  // Dashboard resource selection — track recent + open generator
-  const handleDashboardSelect = (name) => {
-    setSelected(name);
-    setRecentResources(prev => {
-      const next = [name, ...prev.filter(r => r !== name)].slice(0, 8);
-      localStorage.setItem("k8s_recent", JSON.stringify(next));
-      return next;
-    });
     setView("generator");
   };
 
-  // Diff
-  const diffLines = () => {
-    const a = diffA.split("\n"), b = diffB.split("\n");
-    return Array.from({ length: Math.max(a.length, b.length) }, (_, i) => ({ a: a[i] ?? "", b: b[i] ?? "", changed: a[i] !== b[i] }));
+  const handleCreateLinked = (kind) => {
+    setQuickCreateKind(kind);
   };
 
+  const loadSnippet = (s) => {
+    updateForm(s.type, s.form);
+    setSelected(s.type);
+    setView("generator");
+    showToast(`Loaded snippet "${s.name}"`, 'success');
+  };
+
+  const depWarnings = checkDependencies(bundle);
+
+  const theme = getTheme(dark);
   const meta = RESOURCE_META[selected];
-  const currentYaml = yaml;
+
+  // View routing
+  const setViewAndNav = (v) => {
+    setView(v);
+  };
 
   return (
     <div style={{ minHeight: "100vh", background: theme.bg, color: theme.text, display: "flex", flexDirection: "column", fontFamily: "'JetBrains Mono', monospace" }}>
@@ -695,11 +626,11 @@ export default function App() {
       </div>
       {showMobileSidebar && <div className="mobile-only mobile-overlay" onClick={() => setShowMobileSidebar(false)}></div>}
 
-      <TopNav view={view} onView={setView} darkMode={dark} onToggleTheme={() => setDark(!dark)} theme={theme} onToggleMobileSidebar={() => setShowMobileSidebar(true)} />
+      <TopNav view={view} onView={setViewAndNav} darkMode={dark} onToggleTheme={() => setDark(!dark)} theme={theme} onToggleMobileSidebar={() => setShowMobileSidebar(true)} />
 
-      {/* ── ENV TOOLBAR (compact, integrated) ─────────────────────── */}
+      {/* ── ENV TOOLBAR ─────────────────────────────────────── */}
       {view === "generator" && (
-        <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 14px", borderBottom: `1px solid ${theme.border}`, background: theme.bgCard, flexWrap: "wrap" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "5px 14px", borderBottom: `1px solid ${theme.border}`, background: theme.bgCard, flexWrap: "wrap" }}>
           <span style={{ color: theme.textDim, fontSize: 10, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", marginRight: 2 }}>ENV</span>
           {Object.entries(ENV_PRESETS).map(([k, p]) => (
             <button key={k} onClick={() => applyEnvPreset(k)}
@@ -726,7 +657,7 @@ export default function App() {
             <Sidebar selected={selected} onSelect={setSelected} search={search} onSearch={setSearch} theme={theme} onQuickCreate={setQuickCreateKind} />
           </div>
 
-          {/* Form Panel — proper scrolling */}
+          {/* Form Panel */}
           <div style={{ width: 420, flexShrink: 0, borderRight: `1px solid ${theme.border}`, overflowY: "auto", overflowX: "hidden", background: theme.bgCard, scrollBehavior: "smooth" }} className="mobile-stacked-fullwidth">
             {/* Sticky header */}
             <div style={{ padding: "12px 16px", borderBottom: `1px solid ${theme.border}`, background: theme.bgCard, display: "flex", alignItems: "center", gap: 8, position: "sticky", top: 0, zIndex: 10, backdropFilter: "blur(12px)" }}>
@@ -741,7 +672,7 @@ export default function App() {
                 <div style={{ fontFamily: "'Syne', sans-serif", fontWeight: 800, color: meta?.color, fontSize: 14, lineHeight: 1.2 }}>{selected}</div>
                 <div style={{ color: theme.textDim, fontSize: 10, lineHeight: 1.2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{meta?.desc}</div>
               </div>
-              <button onClick={() => setForms(f => ({ ...f, [selected]: {} }))} style={{ background: "transparent", border: `1px solid ${theme.border}`, borderRadius: 6, color: theme.textDim, cursor: "pointer", fontSize: 10, padding: "4px 8px", fontFamily: "'JetBrains Mono', monospace", transition: "all 150ms ease" }}
+              <button onClick={() => resetForm(selected)} style={{ background: "transparent", border: `1px solid ${theme.border}`, borderRadius: 6, color: theme.textDim, cursor: "pointer", fontSize: 10, padding: "4px 8px", fontFamily: "'JetBrains Mono', monospace", transition: "all 150ms ease" }}
                 onMouseEnter={e => { e.currentTarget.style.borderColor = "#ef444460"; e.currentTarget.style.color = "#ef4444"; }}
                 onMouseLeave={e => { e.currentTarget.style.borderColor = theme.border; e.currentTarget.style.color = theme.textDim; }}
               >Clear</button>
@@ -763,7 +694,7 @@ export default function App() {
 
               {/* Action buttons — sticky bottom feel */}
               <div style={{ display: "flex", gap: 6, marginTop: 16, paddingTop: 12, borderTop: `1px solid ${theme.border}`, position: "sticky", bottom: 0, background: theme.bgCard, padding: "12px 0" }}>
-                <button onClick={addToBundle} style={{ flex: 1, background: theme.accentSoft, border: `1px solid ${theme.accent}40`, borderRadius: 8, color: theme.accent, cursor: "pointer", fontSize: 11.5, fontFamily: "'JetBrains Mono', monospace", padding: "10px", fontWeight: 600, transition: "all 150ms ease" }}
+                <button onClick={() => { addToBundle(selected); showToast(`${selected} added to bundle!`, 'success'); }} style={{ flex: 1, background: theme.accentSoft, border: `1px solid ${theme.accent}40`, borderRadius: 8, color: theme.accent, cursor: "pointer", fontSize: 11.5, fontFamily: "'JetBrains Mono', monospace", padding: "10px", fontWeight: 600, transition: "all 150ms ease" }}
                   onMouseEnter={e => { e.currentTarget.style.background = theme.accent + "30"; }}
                   onMouseLeave={e => { e.currentTarget.style.background = theme.accentSoft; }}
                 >
@@ -784,7 +715,7 @@ export default function App() {
                   onFocus={e => { e.currentTarget.style.borderColor = theme.borderFocus; }}
                   onBlur={e => { e.currentTarget.style.borderColor = theme.border; }}
                 />
-                <button onClick={saveSnippet} style={{ background: "transparent", border: `1px solid ${theme.border}`, borderRadius: 7, color: theme.textMuted, cursor: "pointer", fontSize: 11, fontFamily: "'JetBrains Mono', monospace", padding: "8px 10px", transition: "all 150ms ease" }}
+                <button onClick={() => { saveSnippet(snippetName, selected, yaml, form); setSnippetName(""); showToast('Snippet saved!', 'success'); }} style={{ background: "transparent", border: `1px solid ${theme.border}`, borderRadius: 7, color: theme.textMuted, cursor: "pointer", fontSize: 11, fontFamily: "'JetBrains Mono', monospace", padding: "8px 10px", transition: "all 150ms ease" }}
                   onMouseEnter={e => { e.currentTarget.style.borderColor = theme.accent; e.currentTarget.style.color = theme.accent; }}
                   onMouseLeave={e => { e.currentTarget.style.borderColor = theme.border; e.currentTarget.style.color = theme.textMuted; }}
                 >💾 Save</button>
@@ -792,7 +723,7 @@ export default function App() {
             </div>
           </div>
 
-          {/* YAML Output — proper scrolling */}
+          {/* YAML Output */}
           <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
             {/* Validation Bar */}
             {showValidation && (
@@ -838,6 +769,16 @@ export default function App() {
         </div>
       )}
 
+      {/* ── DASHBOARD VIEW ──────────────────────────────────── */}
+      {view === "dashboard" && (
+        <Dashboard
+          onSelect={handleDashboardSelect}
+          onQuickCreate={kind => { setQuickCreateKind(kind); }}
+          recentResources={recentResources}
+          bundle={bundle}
+        />
+      )}
+
       {/* ── BUNDLE ───────────────────────────────────────────── */}
       {view === "bundle" && (
         <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
@@ -877,9 +818,9 @@ export default function App() {
                 return (
                   <button key={name} onClick={() => {
                     if (inBundle) {
-                      setBundle(b => { const n = { ...b }; delete n[name]; return n; });
+                      removeFromBundle(name);
                     } else {
-                      setBundle(b => ({ ...b, [name]: forms[name] || {} }));
+                      addToBundle(name);
                     }
                   }} style={{
                     width: "100%", textAlign: "left",
@@ -926,7 +867,7 @@ export default function App() {
                 fontSize: 13, padding: "9px", fontFamily: "var(--font-mono, 'JetBrains Mono')",
               }}>⛵ Export Helm</button>
               {Object.keys(bundle).length > 0 && (
-                <button onClick={() => { if (window.confirm('Clear all bundle resources?')) setBundle({}); }} style={{
+                <button onClick={() => { if (window.confirm('Clear all bundle resources?')) clearBundle(); }} style={{
                   width: "100%", background: "transparent", border: `1px solid rgba(239,68,68,0.2)`,
                   borderRadius: 'var(--radius-sm, 6px)', color: 'var(--color-rose, #f87171)', cursor: "pointer",
                   fontSize: 13, padding: "9px", fontFamily: "var(--font-mono, 'JetBrains Mono')",
@@ -1006,7 +947,7 @@ export default function App() {
                             borderRadius: 6, color: 'var(--text-secondary, theme.textMuted)', cursor: "pointer",
                             fontSize: 11, padding: "5px 10px", fontFamily: "var(--font-mono, 'JetBrains Mono')",
                           }}>📋</button>
-                          <button onClick={() => setBundle(b => { const n = { ...b }; delete n[type]; return n; })} style={{
+                          <button onClick={() => removeFromBundle(type)} style={{
                             background: "transparent", border: "1px solid rgba(239,68,68,0.2)",
                             borderRadius: 6, color: 'var(--color-rose, #f87171)', cursor: "pointer",
                             fontSize: 11, padding: "5px 10px", fontFamily: "var(--font-mono, 'JetBrains Mono')",
@@ -1106,18 +1047,16 @@ export default function App() {
                       rawYaml={f._rawDoc ? rawYamlToString(f._rawDoc) : (f._rawYaml || "")}
                       rawDoc={f._rawDoc}
                       onDelete={() => {
-                        setBundle(b => { const nb = { ...b }; delete nb[typeKey]; return nb; });
-                        setForms(fms => { const nf = { ...fms }; delete nf[typeKey]; return nf; });
+                        removeFromBundle(typeKey);
+                        deleteForm(typeKey);
                       }}
                       onRawDocChange={(newDoc, newRawText) => {
-                        // newRawText is the exact edited text (preserves quotes+comments)
-                        // newRawText is null when coming from the visual editor (recompute from obj)
                         const updated = {
                           ...f,
                           _rawDoc: newDoc,
                           _rawYaml: newRawText !== null && newRawText !== undefined
-                            ? newRawText                    // textarea edit: keep exact text
-                            : rawYamlToString(newDoc),      // visual edit: reserialize (loses comments, acceptable)
+                            ? newRawText
+                            : rawYamlToString(newDoc),
                         };
                         updateForm(typeKey, updated);
                         setBundle(b => ({ ...b, [typeKey]: updated }));
@@ -1196,7 +1135,7 @@ export default function App() {
             ) : (
               <table style={{ width: "100%", borderCollapse: "collapse", fontFamily: "'JetBrains Mono', monospace", fontSize: 11.5 }}>
                 <tbody>
-                  {diffLines().map((line, i) => (
+                  {diffLines(diffA, diffB).map((line, i) => (
                     <tr key={i}>
                       <td style={{ color: theme.textDim, padding: "1px 8px", userSelect: "none", width: 32, textAlign: "right", fontSize: 10 }}>{i + 1}</td>
                       <td style={{ padding: "1px 12px", borderRight: `1px solid ${theme.border}`, color: line.changed ? "#fca5a5" : "#4a6a4a", whiteSpace: "pre", background: line.changed ? "#1a060610" : "transparent", width: "50%" }}>
@@ -1262,10 +1201,16 @@ export default function App() {
         />
       )}
 
-      {/* Global AI component is now injected into main.jsx directly! */}
-
       {/* Keyboard Shortcuts Modal */}
       {showShortcuts && <KeyboardShortcuts onClose={() => setShowShortcuts(false)} theme={theme} />}
     </div>
   );
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// HELPER — diff lines
+// ═══════════════════════════════════════════════════════════════════
+function diffLines(a, b) {
+  const linesA = a.split("\n"), linesB = b.split("\n");
+  return Array.from({ length: Math.max(linesA.length, linesB.length) }, (_, i) => ({ a: linesA[i] ?? "", b: linesB[i] ?? "", changed: linesA[i] !== linesB[i] }));
 }
